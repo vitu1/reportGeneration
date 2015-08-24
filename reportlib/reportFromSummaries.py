@@ -6,18 +6,21 @@ import argparse
 import pandas
 
 def concat_summaries(inputs, out_fp):
+    "Combines the information from multiple processing steps."
     reports = pandas.concat([build_table(*input) for input in inputs], axis=1)
     reports.to_csv(out_fp, sep='\t', index_label='Samples')
 
 def build_table(summary_dir, summary_prefix, headers):
-    "Return a dataframe for the requested summary information"
+    "Return a dataframe for the requested summary information for a single prefix"
     fps = sorted(glob.glob(os.path.join(summary_dir, summary_prefix + '*')))
     return pandas.concat([pandas.DataFrame(get_values(fp, headers), index=[get_sample_name(fp, summary_prefix)]) for fp in fps])
 
 def get_sample_name(fp, summary_prefix):
+    "Gets the sample name from the summary filepath"
     return fp.rsplit(summary_prefix)[1]
 
 def get_values(fp, headers):
+    "Obtains the requested information from the data filed of the summary file."
     if os.path.isfile(fp):
         with open(fp) as f_in:
             summary = json.load(f_in)
