@@ -15,14 +15,6 @@ class FastqcReport(object):
         self.output_base = output_base
 
     def run(self):
-        """
-        Compiles the summary files for individual samples into one tsv file
-        :param summary_dir: path to the directory where all the summary json files are located
-        :param prefix: the prefix of the summary files to pick
-        :param output_fp: filepath of the output
-        """
-        ### change the description (move it to constructor)
-
         folders = sorted(glob.glob(os.path.join(self.input_dir, self.sub_dir, '*' + '_fastqc')))
 
         summary_table = pandas.concat([self.parse_fastqc_summary(os.path.join(folder, 'summary.txt')) for folder in folders], axis=1).transpose()
@@ -32,6 +24,7 @@ class FastqcReport(object):
         quality_table.to_csv(self.build_output_path('quality'), sep='\t')
 
     def parse_fastqc_quality(self, input_fp):
+        "Parses a summary fastqc file and returns a dataframe with the mean quality per base information for a sample"
         with open(input_fp) as f_in:
             report = f_in.read()
         tableString = re.search('\>\>Per base sequence quality.*?\n(.*?)\n\>\>END_MODULE', report, re.DOTALL).group(1)
@@ -44,14 +37,17 @@ class FastqcReport(object):
             f_s.close()
 
     def parse_fastqc_summary(self, input_fp):
+        "Parses a summary fastqc file and returns a dataframe with the verdicts of fastqc tests for a sample"
         with open(input_fp) as f_in:
             return pandas.read_csv(f_in, sep='\t', header=None, usecols=[0,1], index_col='Category',
                                    names=[self.get_sample_name(input_fp), 'Category'])
 
     def get_sample_name(self, input_fp):
+        "Obtains the sample name from the folder path"
         return os.path.basename(os.path.dirname(input_fp)).split('_fastqc')[0]
 
     def build_out_path(self, type):
+        "Builds the output filepath for a given summary"
         return os.path.join(self.output_dir, '_'.join((self.output_base, self.sub_dir, type)) + '.tsv')
         
 def main(argv=None):
@@ -59,11 +55,11 @@ def main(argv=None):
 
     # input
     p.add_argument("--input-dir", required=True,
-                   help="Directory with fastqc results created by illqc (before and after trim)")
+                   help="Main directory with fastqc results created by illqc")
     p.add_argument("--before-trim-subfolder-dir", default="before_trim",
-                   help="Subdirectory for before trim fastqc results")
+                   help="Subdirectory within input-dir containing before trim fastqc results")
     p.add_argument("--after-trim-subfolder-dir", default="after_trim",
-                   help="Subdirectory for after trim fastqc results")
+                   help="Subdirectory within input-dir containing after trim fastqc results")
 
     # output
     p.add_argument("--output-dir", required=True,
