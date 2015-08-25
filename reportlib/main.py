@@ -1,8 +1,8 @@
 import argparse
 import os
 
-from reportlib.utils import ReportFromJson
-from reportlib.utils import ReportFromTsv
+from reportlib.utils import ReportJson
+from reportlib.utils import ReportTsv
 from reportlib.utils import ReportFastqc
 
 
@@ -29,7 +29,7 @@ def preprocess_report(argv=None):
         (args.decontam_dir, args.decontam_prefix, ["true", "false"])
         ]
 
-    Report = ReportFromJson(inputs, args.output_fp)
+    Report = ReportJson(inputs, args.output_fp)
     Report.run()
 
 def ko_assignment_report(argv=None):
@@ -56,7 +56,7 @@ def ko_assignment_report(argv=None):
         (args.pathway_dir, args.pathway_prefix, ["ko_hits", "mapped_sequences", "unique_prot_hits", "unique_ko_hits", "mapped_sequences_evalue"])
         ]
 
-    Report = ReportFromJson(inputs, args.output_fp)
+    Report = ReportJson(inputs, args.output_fp)
     Report.run()
 
 
@@ -74,7 +74,7 @@ def tsv_report(argv=None):
                    help="Output report file")
     args=p.parse_args(argv)
 
-    Report = ReportFromTsv(args.input_dir, args.input_suffix, args.output_fp)
+    Report = ReportTsv(args.input_dir, args.input_suffix, args.output_fp)
     Report.run()
 
 

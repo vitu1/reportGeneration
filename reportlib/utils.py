@@ -5,7 +5,7 @@ import pandas
 import re
 import StringIO
 
-class ReportFromJson(object):
+class ReportJson(object):
     def __init__(self, inputs, out_fp):
         self.inputs = inputs
         self.out_fp = out_fp
@@ -34,7 +34,7 @@ class ReportFromJson(object):
             summary_data={}
         return {header:summary_data.get(header, None) for header in headers}
 
-class ReportFromTsv(object):
+class ReportTsv(object):
     def __init__(self, input_dir, input_suffix, output_fp):
         self.input_dir = input_dir
         self.input_suffix = input_suffix
