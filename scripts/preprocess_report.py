@@ -1,3 +1,3 @@
 #!/usr/bin/env python
-from reportlib.reportFromSummaries import preprocess_report
+from reportlib.main import preprocess_report
 preprocess_report()

@@ -13,5 +13,5 @@ setup(
     author_email='ctanes@gmail.com',
     url='https://github.com/PennChopMicrobiomeProgram',
     packages=['reportlib'],
-    scripts=['scripts/preprocess_report.py', 'scripts/ko_assignment_report.py', 'scripts/fastqc_report.py'],
+    scripts=['scripts/preprocess_report.py', 'scripts/ko_assignment_report.py', 'scripts/fastqc_report.py', 'scripts/build_results_table.py'],
     )
