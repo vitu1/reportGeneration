@@ -100,7 +100,7 @@ def fastqc_report(argv=None):
         os.mkdir(args.output_dir)
     
     # generate the reports
-    before_report = MargeFastqc(args.input_dir, args.before_trim_subfolder_dir,
+    before_report = MergeFastqc(args.input_dir, args.before_trim_subfolder_dir,
                                  args.output_dir, args.output_base)
     before_report.run()
     

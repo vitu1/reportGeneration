@@ -55,7 +55,7 @@ class MergeTsv(object):
         fps = sorted(glob.glob(os.path.join(self.input_dir, '*' + self.input_suffix)))
 
         # filter out the files that don't have any results
-        fps = [fp in fps if os.path.getsize(fp)>1]
+        fps = [fp for fp in fps if os.path.getsize(fp)>1]
 
         # build pandas dataframes for each file of results
         kos = [self._parse_results(fp) for fp in fps]
@@ -66,13 +66,13 @@ class MergeTsv(object):
         # write them to file. Replace NAs (due to merging) with 0.
         kos.to_csv(self.output_fp, sep='\t', na_rep=0, index_label="Term")
 
-   def _parse_results(self, fp):
-       "Returns a DataFrame containing the results of a single sample"
-       return pandas.read_csv(fp, sep='\t', index_col=0, names=[self._get_sample_name(fp, self.input_suffix)], skiprows=1)
+    def _parse_results(self, fp):
+        "Returns a DataFrame containing the results of a single sample"
+        return pandas.read_csv(fp, sep='\t', index_col=0, names=[self._get_sample_name(fp, self.input_suffix)], skiprows=1)
 
-   def _get_sample_name(self, fp, input_suffix):
-       "Parses the sample name out of the results filepath."
-       return os.path.basename(fp).rsplit(input_suffix)[0]
+    def _get_sample_name(self, fp, input_suffix):
+        "Parses the sample name out of the results filepath."
+        return os.path.basename(fp).rsplit(input_suffix)[0]
 
 class MergeFastqc(object):
     def __init__(self, input_dir, sub_dir, output_dir, output_base):
@@ -82,33 +82,36 @@ class MergeFastqc(object):
         self.output_base = output_base
         
     def run(self):
+        "Generates summary and quality reports for all samples"
         folders = sorted(glob.glob(os.path.join(self.input_dir, self.sub_dir, '*' + '_fastqc')))
+        summary_list = []
+        quality_list = []
+        for folder in folders:
+            with open(os.path.join(folder, 'summary.txt')) as f_in:
+                summary_list.append(self._parse_fastqc_summary(f_in))
+            with open(os.path.join(folder, 'fastqc_data.txt')) as f_in:
+                quality_list.append(self._parse_fastqc_quality(f_in))
 
-        summary_list = [self._parse_fastqc_summary(os.path.join(folder, 'summary.txt')) for folder in folders]
-        summary_table = pandas.concat(summary_list, axis=1).transpose()
+        summary_table = pandas.concat(summary_list, axis=1)#.transpose()
         summary_table.to_csv(self._build_output_path('summary'), sep='\t')
 
-        quality_list = [self._parse_fastqc_quality(os.path.join(folder, 'fastqc_data.txt')) for folder in folders]
         quality_table = pandas.concat(quality_list, axis=1).transpose()
         quality_table.to_csv(self._build_output_path('quality'), sep='\t')
         
-    def _parse_fastqc_quality(self, input_fp):
+    def _parse_fastqc_quality(self, f_in):
         "Returns a DataFrame containing the average quality results of a single sample"
-        with open(input_fp) as f_in:
-            report = f_in.read()
-
+        report = f_in.read()
         tableString = re.search('\>\>Per base sequence quality.*?\n(.*?)\n\>\>END_MODULE', report, re.DOTALL).group(1)
         f_s = StringIO.StringIO(tableString)
         df = pandas.read_csv(f_s, sep='\t', usecols=['#Base', 'Mean'], index_col='#Base')
-        df.columns=[self._get_sample_name(input_fp)]
+        df.columns=[self._get_sample_name(f_in.name)]
         f_s.close()
         return df
                 
-    def _parse_fastqc_summary(self, input_fp):
+    def _parse_fastqc_summary(self, f_in):
         "Returns a DataFrame containing the summary results of a single sample"
-        with open(input_fp) as f_in:
-            return pandas.read_csv(f_in, sep='\t', header=None, usecols=[0,1], index_col='Category',
-                                   names=[self.get_sample_name(input_fp), 'Category'])
+        return pandas.read_csv(f_in, sep='\t', header=None, usecols=[0,1], index_col='Category',
+                               names=[self._get_sample_name(f_in.name), 'Category'])
         
     def _get_sample_name(self, input_fp):
         "Parses the sample name out of the results folderpath."
