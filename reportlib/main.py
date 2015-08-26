@@ -1,9 +1,9 @@
 import argparse
 import os
 
-from reportlib.utils import ReportJson
-from reportlib.utils import ReportTsv
-from reportlib.utils import ReportFastqc
+from reportlib.utils import MergeJson
+from reportlib.utils import MergeTsv
+from reportlib.utils import MergeFastqc
 
 
 def preprocess_report(argv=None):
@@ -29,7 +29,7 @@ def preprocess_report(argv=None):
         (args.decontam_dir, args.decontam_prefix, ["true", "false"])
         ]
 
-    Report = ReportJson(inputs, args.output_fp)
+    Report = MergeJson(inputs, args.output_fp)
     Report.run()
 
 def ko_assignment_report(argv=None):
@@ -56,7 +56,7 @@ def ko_assignment_report(argv=None):
         (args.pathway_dir, args.pathway_prefix, ["ko_hits", "mapped_sequences", "unique_prot_hits", "unique_ko_hits", "mapped_sequences_evalue"])
         ]
 
-    Report = ReportJson(inputs, args.output_fp)
+    Report = MergeJson(inputs, args.output_fp)
     Report.run()
 
 
@@ -74,7 +74,7 @@ def tsv_report(argv=None):
                    help="Output report file")
     args=p.parse_args(argv)
 
-    Report = ReportTsv(args.input_dir, args.input_suffix, args.output_fp)
+    Report = MergeTsv(args.input_dir, args.input_suffix, args.output_fp)
     Report.run()
 
 
@@ -100,10 +100,10 @@ def fastqc_report(argv=None):
         os.mkdir(args.output_dir)
     
     # generate the reports
-    before_report = ReportFastqc(args.input_dir, args.before_trim_subfolder_dir,
+    before_report = MargeFastqc(args.input_dir, args.before_trim_subfolder_dir,
                                  args.output_dir, args.output_base)
     before_report.run()
     
-    after_report = ReportFastqc(args.input_dir, args.after_trim_subfolder_dir,
+    after_report = MergeFastqc(args.input_dir, args.after_trim_subfolder_dir,
                                 args.output_dir, args.output_base)
     after_report.run()
