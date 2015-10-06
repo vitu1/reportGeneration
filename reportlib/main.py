@@ -25,7 +25,7 @@ def preprocess_report(argv=None):
     args=p.parse_args(argv)
     
     inputs = [
-        (args.illqc_dir, args.illqc_prefix, ["input", "both kept", "rev only", "dropped", "fwd only"]),
+        (args.illqc_dir, args.illqc_prefix, ["input", "both_kept", "rev_only", "dropped", "fwd_only"]),
         (args.decontam_dir, args.decontam_prefix, ["true", "false"])
         ]
 
@@ -52,7 +52,7 @@ def ko_assignment_report(argv=None):
     args=p.parse_args(argv)
     
     inputs = [
-        (args.decontam_dir, args.decontam_prefix, ["true"]),
+        (args.decontam_dir, args.decontam_prefix, ["false"]),
         (args.pathway_dir, args.pathway_prefix, ["ko_hits", "mapped_sequences", "unique_prot_hits", "unique_ko_hits", "mapped_sequences_evalue"])
         ]
 
