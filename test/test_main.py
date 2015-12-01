@@ -1,5 +1,6 @@
 import os
 import tempfile
+import unittest
 
 class PathfinderTest(unittest.TestCase):
     def setUp(self):

@@ -1,0 +1,5 @@
+#SampleID	Metaphlan2_Analysis
+k__Bacteria|s__Escherichia_coli	50
+k__Bacteria|s__Haemophilus_parainfluenzae	25
+k__Bacteria|s__Veillonella_unclassified	15
+k__Bacteria|s__Streptococcus_salivarius	10
