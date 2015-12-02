@@ -1,0 +1,12 @@
+PASS	Basic Statistics	PCMP_5001-01_CGATGT_L002_R1.fastq
+PASS	Per base sequence quality	PCMP_5001-01_CGATGT_L002_R1.fastq
+FAIL	Per tile sequence quality	PCMP_5001-01_CGATGT_L002_R1.fastq
+PASS	Per sequence quality scores	PCMP_5001-01_CGATGT_L002_R1.fastq
+FAIL	Per base sequence content	PCMP_5001-01_CGATGT_L002_R1.fastq
+WARN	Per sequence GC content	PCMP_5001-01_CGATGT_L002_R1.fastq
+WARN	Per base N content	PCMP_5001-01_CGATGT_L002_R1.fastq
+PASS	Sequence Length Distribution	PCMP_5001-01_CGATGT_L002_R1.fastq
+PASS	Sequence Duplication Levels	PCMP_5001-01_CGATGT_L002_R1.fastq
+PASS	Overrepresented sequences	PCMP_5001-01_CGATGT_L002_R1.fastq
+PASS	Adapter Content	PCMP_5001-01_CGATGT_L002_R1.fastq
+FAIL	Kmer Content	PCMP_5001-01_CGATGT_L002_R1.fastq

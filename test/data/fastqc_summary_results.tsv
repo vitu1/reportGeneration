@@ -1,0 +1,13 @@
+Category	PCMP_5001-01	PCMP_7014-01
+Basic Statistics	PASS	PASS
+Per base sequence quality	PASS	PASS
+Per tile sequence quality	FAIL	PASS
+Per sequence quality scores	PASS	PASS
+Per base sequence content	FAIL	WARN
+Per sequence GC content	WARN	PASS
+Per base N content	WARN	PASS
+Sequence Length Distribution	PASS	PASS
+Sequence Duplication Levels	PASS	WARN
+Overrepresented sequences	PASS	PASS
+Adapter Content	PASS	PASS
+Kmer Content	FAIL	FAIL
