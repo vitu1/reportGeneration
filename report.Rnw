@@ -1,0 +1,73 @@
+\documentclass{article}
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+
+% Table created by stargazer v.5.2 by Marek Hlavac, Harvard University. E-mail: hlavac at fas.harvard.edu
+% Date and time: Mon, Sep 14, 2015 - 04:06:36 AM
+\begin{table}[!htbp] \centering 
+  \caption{Summary table after qualtiy control.} 
+  \label{} 
+\begin{tabular}{@{\extracolsep{5pt}} cccccc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+ & input & both\_kept & rev\_only & dropped & fwd\_only \\ 
+\hline \\[-1.8ex] 
+PCMP\_0113IMTUCP001C3 & $11,927,448$ & $11,896,443$ & $6,793$ & $2,887$ & $21,325$ \\ 
+PCMP\_0313IMTUCP001C5 & $9,959,376$ & $9,896,846$ & $10,117$ & $4,332$ & $48,081$ \\ 
+PCMP\_0313IMTUCP003C2 & $7,881,715$ & $7,819,453$ & $8,117$ & $2,458$ & $51,687$ \\ 
+PCMP\_0313IMTUCP003C3 & $10,385,846$ & $10,347,137$ & $5,697$ & $2,746$ & $30,266$ \\ 
+PCMP\_0313IMTUCP005C2 & $14,368,442$ & $14,325,826$ & $4,883$ & $4,273$ & $33,460$ \\ 
+PCMP\_0413IMTUCP005C3 & $11,196,631$ & $11,160,180$ & $4,163$ & $2,948$ & $29,340$ \\ 
+PCMP\_0513IMTUCP003C5 & $12,033,877$ & $11,986,202$ & $6,136$ & $5,400$ & $36,139$ \\ 
+PCMP\_0513IMTUCP005C5 & $11,450,023$ & $11,390,205$ & $6,399$ & $5,389$ & $48,030$ \\ 
+PCMP\_1014.6-4-2014 & $7,833,417$ & $7,797,017$ & $6,651$ & $1,715$ & $28,034$ \\ 
+PCMP\_1112IMTVALPrep008 & $12,720,996$ & $12,656,189$ & $22,715$ & $8,317$ & $33,775$ \\ 
+PCMP\_1112IMTVALPrep009 & $16,573,463$ & $16,461,851$ & $4,743$ & $7,218$ & $99,651$ \\ 
+PCMP\_1112IMTVALPrep010 & $12,371,119$ & $12,255,066$ & $4,119$ & $3,126$ & $108,808$ \\ 
+PCMP\_1112IMTVALPrep011 & $13,805,386$ & $13,677,564$ & $4,496$ & $5,836$ & $117,490$ \\ 
+PCMP\_1212IMTUCP001C2 & $1,810,216$ & $1,800,464$ & $2,028$ & $568$ & $7,156$ \\ 
+PCMP\_P7286D5001.03S2.2-6-11 & $10,238,849$ & $10,179,982$ & $10,823$ & $2,891$ & $45,153$ \\ 
+PCMP\_P7286D601203S2 & $16,278,164$ & $16,198,808$ & $12,541$ & $5,282$ & $61,533$ \\ 
+PCMP\_SM1 & $10,277$ & $10,044$ & $28$ & $45$ & $160$ \\ 
+PCMP\_SM2 & $285,275$ & $282,612$ & $828$ & $442$ & $1,393$ \\ 
+\hline \\[-1.8ex] 
+\end{tabular} 
+\end{table} 
+
+\newpage
+
+% Table created by stargazer v.5.2 by Marek Hlavac, Harvard University. E-mail: hlavac at fas.harvard.edu
+% Date and time: Mon, Sep 14, 2015 - 04:07:50 AM
+\begin{table}[!htbp] \centering 
+  \caption{Summary table after Human filtering reads.} 
+  \label{} 
+\begin{tabular}{@{\extracolsep{5pt}} cccc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+ & Non-Human\_Reads & Human\_Reads & Percent\_Human \\ 
+\hline \\[-1.8ex] 
+PCMP\_0113IMTUCP001C3 & $11,896,108$ & $335$ & $0.003$ \\ 
+PCMP\_0313IMTUCP001C5 & $9,893,118$ & $3,728$ & $0.038$ \\ 
+PCMP\_0313IMTUCP003C2 & $7,818,527$ & $926$ & $0.012$ \\ 
+PCMP\_0313IMTUCP003C3 & $10,346,562$ & $575$ & $0.006$ \\ 
+PCMP\_0313IMTUCP005C2 & $14,325,781$ & $45$ & $0.0003$ \\ 
+PCMP\_0413IMTUCP005C3 & $11,160,159$ & $21$ & $0.0002$ \\ 
+PCMP\_0513IMTUCP003C5 & $11,986,132$ & $70$ & $0.001$ \\ 
+PCMP\_0513IMTUCP005C5 & $11,389,209$ & $996$ & $0.009$ \\ 
+PCMP\_1014.6-4-2014 & $7,796,239$ & $778$ & $0.010$ \\ 
+PCMP\_1112IMTVALPrep008 & $12,584,018$ & $72,171$ & $0.570$ \\ 
+PCMP\_1112IMTVALPrep009 & $16,454,722$ & $7,129$ & $0.043$ \\ 
+PCMP\_1112IMTVALPrep010 & $12,253,681$ & $1,385$ & $0.011$ \\ 
+PCMP\_1112IMTVALPrep011 & $13,676,908$ & $656$ & $0.005$ \\ 
+PCMP\_1212IMTUCP001C2 & $1,800,331$ & $133$ & $0.007$ \\ 
+PCMP\_P7286D5001.03S2.2-6-11 & $10,179,760$ & $222$ & $0.002$ \\ 
+PCMP\_P7286D601203S2 & $16,197,185$ & $1,623$ & $0.010$ \\ 
+PCMP\_SM1 & $9,846$ & $198$ & $1.971$ \\ 
+PCMP\_SM2 & $271,704$ & $10,908$ & $3.860$ \\ 
+\hline \\[-1.8ex] 
+\end{tabular} 
+\end{table} 
+
+
+\end{document}
