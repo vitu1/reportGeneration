@@ -93,10 +93,10 @@ class MergeFastqc(object):
                 quality_list.append(self._parse_fastqc_quality(f_in))
 
         summary_table = pandas.concat(summary_list, axis=1)#.transpose()
-        summary_table.to_csv(self._build_output_path('summary'), sep='\t')
+        summary_table.to_csv(self.build_output_path('summary'), sep='\t')
 
         quality_table = pandas.concat(quality_list, axis=1).transpose()
-        quality_table.to_csv(self._build_output_path('quality'), sep='\t')
+        quality_table.to_csv(self.build_output_path('quality'), sep='\t', index_label="Samples")
         
     def _parse_fastqc_quality(self, f_in):
         "Returns a DataFrame containing the average quality results of a single sample"
@@ -117,6 +117,6 @@ class MergeFastqc(object):
         "Parses the sample name out of the results folderpath."
         return os.path.basename(os.path.dirname(input_fp)).split('_fastqc')[0]
         
-    def _build_output_path(self, type):
+    def build_output_path(self, type):
         "Builds an output filepath according to the type of summary (summary, quality etc)"
         return os.path.join(self.output_dir, '_'.join((self.output_base, self.sub_dir, type)) + '.tsv')

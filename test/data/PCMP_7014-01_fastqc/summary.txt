@@ -1,0 +1,12 @@
+PASS	Basic Statistics	PCMP_7014-01_GGCTAC_L008_R1.fastq
+PASS	Per base sequence quality	PCMP_7014-01_GGCTAC_L008_R1.fastq
+PASS	Per tile sequence quality	PCMP_7014-01_GGCTAC_L008_R1.fastq
+PASS	Per sequence quality scores	PCMP_7014-01_GGCTAC_L008_R1.fastq
+WARN	Per base sequence content	PCMP_7014-01_GGCTAC_L008_R1.fastq
+PASS	Per sequence GC content	PCMP_7014-01_GGCTAC_L008_R1.fastq
+PASS	Per base N content	PCMP_7014-01_GGCTAC_L008_R1.fastq
+PASS	Sequence Length Distribution	PCMP_7014-01_GGCTAC_L008_R1.fastq
+WARN	Sequence Duplication Levels	PCMP_7014-01_GGCTAC_L008_R1.fastq
+PASS	Overrepresented sequences	PCMP_7014-01_GGCTAC_L008_R1.fastq
+PASS	Adapter Content	PCMP_7014-01_GGCTAC_L008_R1.fastq
+FAIL	Kmer Content	PCMP_7014-01_GGCTAC_L008_R1.fastq

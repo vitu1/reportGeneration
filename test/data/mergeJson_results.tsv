@@ -1,0 +1,4 @@
+Samples	both_kept	dropped	input	false	true
+5001-01-m.json	500.0	100.0	1000.0		
+5001-01.json				300.0	200.0
+7014-01.json	1700.0		2000.0	1500.0	
