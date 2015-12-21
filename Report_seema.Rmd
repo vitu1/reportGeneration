@@ -2,7 +2,7 @@
 title: "Basic Bioinformatics Overview"
 author: "Ashwini Patil"
 date: "December 21, 2015"
-output: html_document
+output: pdf_document
 ---
 
 ### Introduction
@@ -29,21 +29,27 @@ Goal 1 and 2 can be achieved through a single experiment with three group of rat
 Samples were sequences on Hiseq 2000 and were demultiplexed and analyzed for sequencing quality using FASTQC. Nextera-XT adapters were used while sequencing which were removed by the trimming of adapters using trimmomatic-0.33. A second quality control step using FASTQC was performed to check quality of sequences after adapter trimming.
 
 **Figure 1: Heatmap showing read length distribution before adapter trimming**
-```{r, echo=FALSE}
+```{r,fig.width=4, fig.height=10, fig.align='center', echo=FALSE}
 library(pheatmap)
 before <- read.table("fastqc_before_trim_quality.tsv", header = T)
 rownames(before) <- before$Samples
 before$Samples <- NULL
-pheatmap(before)
+pheatmap(before, cellwidth = 9, cellheight = 9, fontsize = 12, filename = "before.png")
+library(png)
+library(grid)
+img <- readPNG("before.png")
+grid.raster(img)
 ```
 
 
 **Figure 2: Heatmap showing read length distribution after adapter trimming**
-```{r, echo=FALSE}
+```{r,fig.width=5, fig.height=15, fig.align='center', echo=FALSE}
 after <- read.table("fastqc_after_trim_quality.tsv", header = T)
 rownames(after) <- after$Samples
 after$Samples <- NULL
-pheatmap(after)
+pheatmap(after, cellwidth = 9, cellheight = 9, fontsize = 12, filename = "after.png")
+img <- readPNG("after.png")
+grid.raster(img)
 ```
 
 
@@ -79,7 +85,7 @@ Taxonomic assignments were performned using Metaphlan2. A heatmap was generated 
 
 **Figure 3: Heatmap generated after taxonomic assignments using Metaphlan2**
 
-```{r, echo=FALSE}
+```{r,  echo=FALSE}
 s <- read.delim("taxonomic_assignments.tsv", comment.char="#")
 # Convert assignment column to string
 s$Term <- as.character(s$Term)
@@ -101,17 +107,20 @@ species_labels <- sub("s__", "", species_labels)
 rownames(smat) <- species_labels
 
 # Use the pheatmap library for plot
-pheatmap(smat, cellwidth = 3, cellheight = 3, width = 100, height = 100)
-
+pheatmap(smat, cellwidth = 9, cellheight = 9, fontsize = 12, filename = "metaphlan2.png")
+img <- readPNG("metaphlan2.png")
+grid.raster(img)
 ```
 
 ### Pathway abundance 
 Presence/abscence and abundance of genes in pathways was evaluated by mapping reads to KEGG database using RAPsearch and then abundace were calculated. 
 
 **Figure 4: Heatmap generated after mapping against KEGG database showing presence/absence and abundance of genes in pathways**
-```{r, echo=FALSE}
+```{r,echo=FALSE}
 s <- read.delim("ko_assignments.tsv", comment.char="#")
 rownames(s) <- s$Term
 s$Term <- NULL
-pheatmap(s)
+pheatmap(s,  filename = "pathway.png")
+img <- readPNG("pathway.png")
+grid.raster(img)
 ```
