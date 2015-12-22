@@ -9,12 +9,16 @@ output: pdf_document
 knitr::opts_chunk$set(echo=FALSE)
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 library(pheatmap)
 library(png)
 library(grid)
 library(pander)
 library(stringr)
+library(qiimer)
+library(vegan)
+library(ape)
+library(ggplot2)
 ```
 
 ### Introduction
@@ -46,7 +50,7 @@ Samples were sequences on Hiseq 2000 and were demultiplexed and analyzed for seq
 Please see attached file, `quality_after.pdf`.
 
 ```{r,fig.width=7, fig.height=5, fig.align='center', echo=FALSE}
-fp = file.path(work_dir, 'fastqc_after_trim_quality.tsv')
+fp = file.path('fastqc_after_trim_quality.tsv')
 
 quality = read.table(fp, sep='\t', header=TRUE, stringsAsFactors = FALSE, row.names = 1)
 
@@ -96,38 +100,140 @@ colnames(decontam) <- c("Samples","Non-HumanReads", "HumanReads", "HumanReadsPer
 pander(decontam, split.table = Inf)
 ```
 
-### Taxonomic assignments using Metaphlan2
-Taxonomic assignments were performned using Metaphlan2. A heatmap was generated from the results of taxonomic assignments.
+## Taxonomic assignments
 
-**Figure 2: Heatmap generated after taxonomic assignments using Metaphlan2**
+Taxonomic assignments were performned using the MetaPhlAn2 program. This software uses a small database of clade-specific marker genes to identify bacterial, fungal, archaeal, and viral taxa in shotgun metagenomics data.  This method sometimes misses low-abundance organisms because of the small database size.  However, taxa identified here are very likely to be authentically present in the data.
 
-Please see attached file, `taxonomic_assignments.pdf`.
+#### Heatmap of taxonomic assignments
+
+Heatmap charts were generated from the taxonomic assignments.  Please see the attached files, `taxonomic_assignments_clustered.pdf` and `taxonomic_assignments_unclustered.pdf`.  In the heatmap charts, each column represents one sample and each row represents one taxon (typically a species).  In the clustered file, samples were arranged by percentage of shared species.  Species were included in the chart if the abundance in any sample exceeded 1%.
+
+The chart is colored white if species were not observed in the sample, dark blue if species were observed at very low abundance.  This allows the reader to quickly survey species presence/absence.  Abundance values exceeding 50% are colored red, indicating an extremely dominant species.
 
 ```{r,  echo=FALSE}
-s <- read.delim("taxonomic_assignments.tsv", comment.char="#")
-# Convert assignment column to string
-s$Term <- as.character(s$Term)
+remove_rank_prefix <- function (x) {
+  gsub("[kpcofgs]__", "", x, perl=TRUE)
+}
 
-# Keep only species-level rows
-# We should do this in python before table is saved
-is_species <- str_count(s$Term, fixed("|")) == 6
-s <- s[is_species,]
+replace_underscores <- function (x) {
+  gsub("_+", " ", x, perl=TRUE)
+}
 
-# Store as a matrix
-smat <- as.matrix(s[,-1])
-# Check that column sums add to 1
-#colSums((smat))
+read_metaphlan2_table <- function (filepath, sample_prefix="PCMP_") {
+  df <- read.delim(filepath, comment.char="#")
+  props <- as.matrix(df[,-1])
+  colnames(props) <- sub(sample_prefix, "", colnames(props), fixed = TRUE)
+  rownames(props) <- replace_underscores(remove_rank_prefix(df[,1]))
+  props
+}
 
-# Grab species names from assignment strings
-species_labels <- sapply(strsplit(s$Term, "|", fixed = T), `[`, 7)
-species_labels <- sub("s__", "", species_labels)
-rownames(smat) <- species_labels
+props <- read_metaphlan2_table("taxonomic_assignments.tsv")
+adf <- split_assignments(rownames(props), split = "\\|")
+a <- simplify_assignments(adf, rank2 = "Species")
 
-# Use the pheatmap library for plot
+plotdata <- props
+rownames(plotdata) <- a
+maxprops <- apply(plotdata, 1, max)
+plotdata <- plotdata[maxprops >= 1,]
+
+plotcolors <- saturated_rainbow(100, saturation_limit = 0.6)
+plotbreaks <- c(0, 1e-8, 2:100)
+
 pheatmap(
-  smat, filename = "taxonomic_assignments.pdf",
+  plotdata,
+  color = plotcolors, breaks = plotbreaks,
+  clustering_distance_rows = "binary",
+  clustering_distance_cols = "binary",
+  main = "Taxa identified by clade-specific marker genes (metaphlan2)",
+  filename = "taxonomic_assignments_clustered.pdf",
+  cellwidth = 9, cellheight = 9, fontsize = 10)
+
+pheatmap(
+  plotdata,
+  color = plotcolors, breaks = plotbreaks,
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  main = "Taxa identified by clade-specific marker genes (metaphlan2)",
+  filename = "taxonomic_assignments_unclustered.pdf",
   cellwidth = 9, cellheight = 9, fontsize = 10)
 ```
+
+#### Distance analysis: abundance weighted
+
+Here, we use Bray-Curtis distance to compare the species composition of the samples to each other.
+
+The first plot shows the distance between each pair of samples in a single 2D plot.  It is not possible to plot the distances exactly on paper, so we have used a method of ordination called Principal Coordinates Analysis to select the best coordinate system for display.  The percentage of total variance captured along each axis is displayed on the chart.  It is typical for the percentage to be somewhat low if there are many samples, all different in a variety of ways.
+
+```{r}
+bc <- vegdist(t(props))
+pc <- pcoa(bc)
+
+pc_df <- data.frame(Sample = rownames(pc$vectors), stringsAsFactors = FALSE)
+pc_df <- cbind(pc_df, pc$vectors[pc_df$Sample, 1:3])
+rownames(pc_df) <- NULL
+
+pc_pct <- round(pc$values$Relative_eig * 100)
+```
+
+```{r, fig.width=6, fig.height=5}
+ggplot(pc_df) +
+  geom_point(aes(x=Axis.1, y=Axis.2)) +
+  theme_bw() +
+  labs(
+    x = paste0("PCoA axis 1 (", pc_pct[1], "%)"),
+    y = paste0("PCoA axis 2 (", pc_pct[2], "%)"),
+    title = 'Ordination based on Bray-Curtis distance')
+```
+
+The second plot shows sample clustering based on Bray-Curtis distance.  We have used a method of hierarchical clustering called "average-linkage" or UPGMA.  At the bottom of the dendrogram, all samples start out in their own group.  Moving up the dendrogram, samples accumulate into clusters if the average (mean) distance between all samples is below the indicated value.
+
+```{r, fig.width=6, fig.height=6}
+bc_upgma <- hclust(bc, method = "average")
+par(cex=0.5)
+plot(
+  bc_upgma, hang=-1,
+  ylab = "Bray-Curtis distance",
+  xlab="Hierarchical clsutering",
+  sub="Average-linkage method (UPGMA)")
+par(cex=1)
+```
+
+#### Distance analysis: presence-absence
+
+Here, we use Jaccard distance to compare samples based on shared species membership.  Plots are described above.
+
+```{r}
+jc <- dist(t(props), method = "binary")
+pc <- pcoa(jc)
+
+pc_df <- data.frame(Sample = rownames(pc$vectors), stringsAsFactors = FALSE)
+pc_df <- cbind(pc_df, pc$vectors[pc_df$Sample, 1:3])
+rownames(pc_df) <- NULL
+
+pc_pct <- round(pc$values$Relative_eig * 100)
+```
+
+```{r, fig.width=6, fig.height=5}
+ggplot(pc_df) +
+  geom_point(aes(x=Axis.1, y=Axis.2)) +
+  theme_bw() +
+  labs(
+    x = paste0("PCoA axis 1 (", pc_pct[1], "%)"),
+    y = paste0("PCoA axis 2 (", pc_pct[2], "%)"),
+    title = 'Ordination based on Jaccard distance')
+```
+
+```{r, fig.width=6, fig.height=6}
+bc_upgma <- hclust(bc, method = "average")
+par(cex=0.5)
+plot(
+  bc_upgma, hang=-1,
+  ylab = "Jaccard distance",
+  xlab="Hierarchical clsutering",
+  sub="Average-linkage method (UPGMA)")
+par(cex=1)
+```
+
 
 ### Pathway abundance 
 Presence/abscence and abundance of genes in pathways was evaluated by mapping reads to KEGG database using RAPsearch and then abundace were calculated. 
