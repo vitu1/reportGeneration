@@ -1,0 +1,126 @@
+---
+title: "Basic Bioinformatics Overview"
+author: "Ashwini Patil"
+date: "December 21, 2015"
+output: pdf_document
+---
+
+### Introduction
+In our previous workin adult, male rats, we found that a sub-population exposed to chronic social defeat over 5-7 days exhibits behavioral vurnerability (increased passive coping, anxiety-like and depressive-like behavior) whereas the other sub-population exhibits resilience to these effects of defeat. Our overall goal is to understand the neural mechanisms that produce vulnerability and resilence in order to reduce vulnerability and promote resilence. This work has transational relevance because chronic stress is associated with post-traumatic stress disorder and depression. We have also determined that circulating microRNA profiles of rats that go on to be vulnerable are different. Thus, we as interested in biomarkers that can predict future vulnerability or resilience.
+
+This project has three goals and purposes to use fecal samples.
+
+Goal 1:
+To determine whether vulnerable and resilient rats have different gut microbiome profiles.
+Hypothesis: Rats vulnerable to stress will exhibit a different gut microbiome profile compared to resilient or non-stressed controls.
+
+Goal 2:
+To determine whether the gut microbiome profile at pre-stress timepoints is different before the rats become resilient or vurnerable.
+Hypothesis: Gut microbiome profiles prior to stress may predict which individuals will be vunerable or resilient to future mess.
+
+Goal 3:
+To determine whether vulnerable rats can be made resilient by pair-housing with a resilient rats.
+Hypothesis: Such pair-housing may shift the vulnerable phenotype to a resilient one due to transfer of microbiome through coprophagia.
+
+Overall:
+Goal 1 and 2 can be achieved through a single experiment with three group of rats (control, resilient, vulnerable) and fecal samples collected pre-stress and after the stress phenotype is established. Goal 3 is a bigger study requiring more controls. Wouls also serve to validate the initial findings in a seperate cohort of animals in addition to testing a novel way to promote resilience.
+
+### Demultiplexing and quality control
+Samples were sequences on Hiseq 2000 and were demultiplexed and analyzed for sequencing quality using FASTQC. Nextera-XT adapters were used while sequencing which were removed by the trimming of adapters using trimmomatic-0.33. A second quality control step using FASTQC was performed to check quality of sequences after adapter trimming.
+
+**Figure 1: Heatmap showing read length distribution before adapter trimming**
+```{r,fig.width=4, fig.height=10, fig.align='center', echo=FALSE}
+library(pheatmap)
+before <- read.table("fastqc_before_trim_quality.tsv", header = T)
+rownames(before) <- before$Samples
+before$Samples <- NULL
+pheatmap(before, cellwidth = 9, cellheight = 9, fontsize = 12, filename = "before.png")
+library(png)
+library(grid)
+img <- readPNG("before.png")
+grid.raster(img)
+```
+
+
+**Figure 2: Heatmap showing read length distribution after adapter trimming**
+```{r,fig.width=5, fig.height=15, fig.align='center', echo=FALSE}
+after <- read.table("fastqc_after_trim_quality.tsv", header = T)
+rownames(after) <- after$Samples
+after$Samples <- NULL
+pheatmap(after, cellwidth = 9, cellheight = 9, fontsize = 12, filename = "after.png")
+img <- readPNG("after.png")
+grid.raster(img)
+```
+
+
+Nextera-XT adapters were trimmed using trimmomatic and Table 1 shows the number of sequenced reads and number reads retrieved from both strands after adapter trimming.
+
+**Table 1: Table showing number of reads before and after trimmming the adapters with Trimmomatic.**
+```{r, echo=FALSE}
+library(pander)
+preprocess <- read.table("preprocess_summary.tsv", header = T)
+preprocess$Samples <- substr(preprocess$Samples, 1, nchar(as.character(preprocess$Samples))-5)
+illqc <- preprocess[,1:6]
+colnames(illqc) <- c("Samples","BothKept", "Dropped", "ForwardOnly", "Input", "ReverseOnly")
+pander(illqc, split.table = Inf)
+```
+
+
+### Human DNA filtering
+Human DNA was filtered using BWA with HG38 version of human genome as reference. At the end of the filtering step the reads were divided into 2 files containd Human DNA and non-human DNA for each sample. Table 2 list out the number of human and non-human reads and the human percentage in the samples.
+
+**Table 2: Table showing number of reads after filtering of Human reads.**
+```{r, echo=FALSE}
+library(pander)
+preprocess <- read.table("preprocess_summary.tsv", header = T)
+preprocess$Samples <- substr(preprocess$Samples, 1, nchar(as.character(preprocess$Samples))-5)
+decontam <- cbind.data.frame(Samples=preprocess$Samples, false=preprocess$false, true=preprocess$true)
+decontam$Human_percent <- (decontam$true * 100)/(decontam$true + decontam$false)
+colnames(decontam) <- c("Samples","Non-HumanReads", "HumanReads", "HumanReadsPercent" )
+pander(decontam, split.table = Inf)
+```
+
+### Taxonomic assignments using Metaphlan2
+Taxonomic assignments were performned using Metaphlan2. A heatmap was generated from the results of taxonomic assignments.
+
+**Figure 3: Heatmap generated after taxonomic assignments using Metaphlan2**
+
+```{r,  echo=FALSE}
+s <- read.delim("taxonomic_assignments.tsv", comment.char="#")
+# Convert assignment column to string
+s$Term <- as.character(s$Term)
+
+# Keep only species-level rows
+# We should do this in python before table is saved
+library(stringr)
+is_species <- str_count(s$Term, fixed("|")) == 6
+s <- s[is_species,]
+
+# Store as a matrix
+smat <- as.matrix(s[,-1])
+# Check that column sums add to 1
+#colSums((smat))
+
+# Grab species names from assignment strings
+species_labels <- sapply(strsplit(s$Term, "|", fixed = T), `[`, 7)
+species_labels <- sub("s__", "", species_labels)
+rownames(smat) <- species_labels
+
+# Use the pheatmap library for plot
+pheatmap(smat, cellwidth = 9, cellheight = 9, fontsize = 12, filename = "metaphlan2.png")
+img <- readPNG("metaphlan2.png")
+grid.raster(img)
+```
+
+### Pathway abundance 
+Presence/abscence and abundance of genes in pathways was evaluated by mapping reads to KEGG database using RAPsearch and then abundace were calculated. 
+
+**Figure 4: Heatmap generated after mapping against KEGG database showing presence/absence and abundance of genes in pathways**
+```{r,echo=FALSE}
+s <- read.delim("ko_assignments.tsv", comment.char="#")
+rownames(s) <- s$Term
+s$Term <- NULL
+pheatmap(s,  filename = "pathway.png")
+img <- readPNG("pathway.png")
+grid.raster(img)
+```
