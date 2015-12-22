@@ -60,3 +60,4 @@ target/
 # data files
 *.fasta
 *.fastq
+.Rproj.user
