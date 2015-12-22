@@ -45,7 +45,7 @@ if(length(header_idx)>1){
 ```
 
 ### Introduction
-In our previous workin adult, male rats, we found that a sub-population exposed to chronic social defeat over 5-7 days exhibits behavioral vurnerability (increased passive coping, anxiety-like and depressive-like behavior) whereas the other sub-population exhibits resilience to these effects of defeat. Our overall goal is to understand the neural mechanisms that produce vulnerability and resilence in order to reduce vulnerability and promote resilence. This work has transational relevance because chronic stress is associated with post-traumatic stress disorder and depression. We have also determined that circulating microRNA profiles of rats that go on to be vulnerable are different. Thus, we as interested in biomarkers that can predict future vulnerability or resilience.
+In our previous working adult, male rats, we found that a sub-population exposed to chronic social defeat over 5-7 days exhibits behavioral vurnerability (increased passive coping, anxiety-like and depressive-like behavior) whereas the other sub-population exhibits resilience to these effects of defeat. Our overall goal is to understand the neural mechanisms that produce vulnerability and resilence in order to reduce vulnerability and promote resilence. This work has transational relevance because chronic stress is associated with post-traumatic stress disorder and depression. We have also determined that circulating microRNA profiles of rats that go on to be vulnerable are different. Thus, we are interested in biomarkers that can predict future vulnerability or resilience.
 
 This project has three goals and purposes to use fecal samples.
 
@@ -62,10 +62,12 @@ To determine whether vulnerable rats can be made resilient by pair-housing with 
 Hypothesis: Such pair-housing may shift the vulnerable phenotype to a resilient one due to transfer of microbiome through coprophagia.
 
 Overall:
-Goal 1 and 2 can be achieved through a single experiment with three group of rats (control, resilient, vulnerable) and fecal samples collected pre-stress and after the stress phenotype is established. Goal 3 is a bigger study requiring more controls. Wouls also serve to validate the initial findings in a seperate cohort of animals in addition to testing a novel way to promote resilience.
+Goal 1 and 2 can be achieved through a single experiment with three group of rats (control, resilient, vulnerable) and fecal samples collected pre-stress and after the stress phenotype is established. Goal 3 is a bigger study requiring more controls. Woulds also serve to validate the initial findings in a seperate cohort of animals in addition to testing a novel way to promote resilience.
 
 ### Demultiplexing and quality control
-Samples were sequences on Hiseq 2000 and were demultiplexed and analyzed for sequencing quality using FASTQC. Nextera-XT adapters were used while sequencing which were removed by the trimming of adapters using trimmomatic-0.33. A second quality control step using FASTQC was performed to check quality of sequences after adapter trimming.
+Samples were sequences on Hiseq 2000 and were demultiplexed and analyzed for sequencing quality using FASTQC. The demultiplexing step involves identifing DNA barcodes from the high-throughput data files generated from the Hiseq run. Reads for each sample sequenced is identified by matching the barcode associated with the samples and the data is then outputted in fastq format with each sample having one forward and reverse strand fastq file.
+
+Nextera-XT adapters were used while sequencing which were removed by the trimming of adapters using trimmomatic-0.33. A second quality control step using FASTQC was performed to check quality of sequences after adapter trimming.
 
 **Figure 1: Number of read pairs in samples after demultiplexing**
 
@@ -83,12 +85,10 @@ num_seq = data.frame(numSeq = data[,1], count = data[,1]/1000000)
 num_seq$toPlot = row.names(num_seq) != 'unassigned'
 num_seq$toPlot[grep('negative|vibriolambda|crypto', row.names(num_seq))] = FALSE
 
-mean(num_seq$count[num_seq$toPlot])
-
 write.table(data, file=save_fp_txt, quote=FALSE, col.names=FALSE, sep='\t')
 
 ggplot(num_seq[num_seq$toPlot,], aes(x=count)) +
-  geom_histogram() +
+  geom_histogram(binwidth = 0.5) +
   theme_classic() +
   theme_bw() + 
   xlab("Number of read pairs in sample (millions, M)") +
@@ -130,32 +130,12 @@ ggsave(filename='quality_after.pdf', width=7, height=5, units='in')
 ```
 
 
-Nextera-XT adapters were trimmed using trimmomatic and Table 1 shows the number of sequenced reads and number reads retrieved from both strands after adapter trimming.
+Nextera-XT adapters were trimmed using trimmomatic and Table 1 (Appendix) shows the number of sequenced reads and number reads retrieved from both strands after adapter trimming.
 
-**Table 1: Table showing number of reads before and after trimmming the adapters with Trimmomatic.**
-
-
-```{r, echo=FALSE}
-preprocess <- read.table("preprocess_summary.tsv", header = T)
-preprocess$Samples <- substr(preprocess$Samples, 1, nchar(as.character(preprocess$Samples))-5)
-illqc <- preprocess[,1:6]
-colnames(illqc) <- c("Samples","BothKept", "Dropped", "ForwardOnly", "Input", "ReverseOnly")
-pander(illqc, split.table = Inf)
-```
 
 
 ### Human DNA filtering
-Human DNA was filtered using BWA with HG38 version of human genome as reference. At the end of the filtering step the reads were divided into 2 files containd Human DNA and non-human DNA for each sample. Table 2 list out the number of human and non-human reads and the human percentage in the samples.
-
-**Table 2: Table showing number of reads after filtering of Human reads.**
-```{r, echo=FALSE}
-preprocess <- read.table("preprocess_summary.tsv", header = T)
-preprocess$Samples <- substr(preprocess$Samples, 1, nchar(as.character(preprocess$Samples))-5)
-decontam <- cbind.data.frame(Samples=preprocess$Samples, false=preprocess$false, true=preprocess$true)
-decontam$Human_percent <- (decontam$true * 100)/(decontam$true + decontam$false)
-colnames(decontam) <- c("Samples","Non-RatReads", "RatReads", "RatReadsPercent" )
-pander(decontam, split.table = Inf)
-```
+Human DNA was filtered using BWA with HG38 version of human genome as reference. At the end of the filtering step the reads were divided into 2 files containing Human DNA and non-human DNA for each sample. Table 2 (Appendix) list out the number of human and non-human reads and the human percentage in the samples.
 
 ## Taxonomic assignments
 
@@ -305,3 +285,36 @@ pheatmap(
   s, filename = "gene_function_assignments.pdf",
   cellwidth = 9, cellheight = 9, fontsize = 10)
 ```
+
+## Appendix
+
+**Table 1: Number of reads before and after trimmming Illumina adapter sequences with Trimmomatic.**
+
+```{r, echo=FALSE}
+read.table("preprocess_summary.tsv", header = T) %>%
+  mutate(Samples = sub(".json", "", Samples, fixed = TRUE)) %>%
+  select(
+    Sample = Samples,
+    Input = input,
+    Dropped = dropped,
+    `Forward only` = fwd_only,
+    `Reverse only` = rev_only,
+    `Both kept` = both_kept) %>%
+  pander(split.table = Inf)
+```
+
+**Table 2: Number of reads before and after filtering of host genome sequence.**
+```{r, echo=FALSE}
+read.table("preprocess_summary.tsv", header = T) %>%
+  mutate(Samples = sub(".json", "", Samples, fixed = TRUE)) %>%
+  mutate(
+    `Percent host reads` = 100 * true / (true + false),
+    `Percent host reads` = round(`Percent host reads`, 2)) %>%
+  select(
+    Sample = Samples,
+    `Host reads` = true,
+    `Non-host reads` = false,
+    `Percent host reads`) %>%
+  pander(split.table = Inf)
+```
+
