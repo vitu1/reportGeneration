@@ -17,6 +17,28 @@ library(png)
 library(grid)
 library(pander)
 library(stringr)
+library(reshape2)
+library(dplyr)
+library(tidyr)
+```
+
+
+```{r sample_sheet_import, echo=FALSE}
+mapping_file_name <- "20151210_seema_metadata.txt"
+s <- read.table(mapping_file_name, sep='\t',  header=TRUE, stringsAsFactors = FALSE)
+s$SampleID <- as.character(s$SampleID)
+
+color_by <- ''
+shape_by <- ''
+potential_headers <- c('study_group', 'study_day', 'current_antibiotics', 'cage_number', 'mouse_strain')
+header_idx <- which(is.element(potential_headers, colnames(s)))
+
+if(length(header_idx)>0){
+  color_by <- potential_headers[header_idx[1]]
+}
+if(length(header_idx)>1){
+  shape_by <- potential_headers[header_idx[2]]
+}
 ```
 
 ### Introduction
@@ -78,22 +100,28 @@ Please see attached file, `quality_after.pdf`.
 ```{r,fig.width=7, fig.height=5, fig.align='center', echo=FALSE}
 fp = file.path('fastqc_after_trim_quality.tsv')
 
-quality = read.table(fp, sep='\t', header=TRUE, stringsAsFactors = FALSE, row.names = 1)
+quality <- read.table(fp, sep='\t', header=TRUE) %>%
+  rename(Sample = Samples) %>%
+  melt(id.vars="Sample", variable.name="Position", value.name = "Quality") %>%
+  mutate(
+    Position = sub("X", "", Position),
+    Position = sub("\\.\\d+", "", Position, perl = TRUE),
+    Position = as.numeric(Position),
+    Sample = sub("PCMP_", "", Sample, fixed = TRUE)) %>%
+  separate(Sample, c("Sample", "Direction"), sep="_") %>%
+  mutate(Direction = factor(Direction))
 
-pos = gsub('X', '', colnames(quality))
-pos = sapply(pos, function(x) mean(as.numeric(unlist(strsplit(x, '[.]')))))
+ave_quality <- group_by(quality, Direction, Position) %>%
+  summarise(MeanQual = mean(Quality), SdQual = sd(Quality)) %>%
+  mutate(LowQual = MeanQual - SdQual, HighQual = MeanQual + SdQual)
 
-df = data.frame(pos=pos,
-                mn=colMeans(quality),
-                std=apply(quality, 2, sd))
-
-ggplot(df, aes(x=pos, y=mn)) + 
-  geom_errorbar(aes(ymin=mn-std, ymax=mn+std), width=.1) +
+ggplot(ave_quality, aes(x=Position, y=MeanQual)) + 
+  geom_errorbar(aes(ymin=LowQual, ymax=HighQual)) +
+  facet_wrap(~ Direction) +
   geom_line() +
   geom_point() +
   theme_bw() + 
-  xlab('nucleotide position') +
-  ylab('quality score')
+  labs(x='Position in sequence read', y='Average quality score per sample')
 ggsave(filename='quality_after.pdf', width=7, height=5, units='in')
 
 ```
@@ -122,7 +150,7 @@ preprocess <- read.table("preprocess_summary.tsv", header = T)
 preprocess$Samples <- substr(preprocess$Samples, 1, nchar(as.character(preprocess$Samples))-5)
 decontam <- cbind.data.frame(Samples=preprocess$Samples, false=preprocess$false, true=preprocess$true)
 decontam$Human_percent <- (decontam$true * 100)/(decontam$true + decontam$false)
-colnames(decontam) <- c("Samples","Non-HumanReads", "HumanReads", "HumanReadsPercent" )
+colnames(decontam) <- c("Samples","Non-RatReads", "RatReads", "RatReadsPercent" )
 pander(decontam, split.table = Inf)
 ```
 
