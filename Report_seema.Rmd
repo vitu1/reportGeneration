@@ -288,23 +288,33 @@ pheatmap(
 
 ## Appendix
 
-**Table 1: Table showing number of reads before and after trimmming the adapters with Trimmomatic.**
+**Table 1: Number of reads before and after trimmming Illumina adapter sequences with Trimmomatic.**
 
 ```{r, echo=FALSE}
-preprocess <- read.table("preprocess_summary.tsv", header = T)
-preprocess$Samples <- substr(preprocess$Samples, 1, nchar(as.character(preprocess$Samples))-5)
-illqc <- preprocess[,1:6]
-colnames(illqc) <- c("Samples","BothKept", "Dropped", "ForwardOnly", "Input", "ReverseOnly")
-pander(illqc, split.table = Inf)
+read.table("preprocess_summary.tsv", header = T) %>%
+  mutate(Samples = sub(".json", "", Samples, fixed = TRUE)) %>%
+  select(
+    Sample = Samples,
+    Input = input,
+    Dropped = dropped,
+    `Forward only` = fwd_only,
+    `Reverse only` = rev_only,
+    `Both kept` = both_kept) %>%
+  pander(split.table = Inf)
 ```
 
-**Table 2: Table showing number of reads after filtering of Human reads.**
+**Table 2: Number of reads before and after filtering of host genome sequence.**
 ```{r, echo=FALSE}
-preprocess <- read.table("preprocess_summary.tsv", header = T)
-preprocess$Samples <- substr(preprocess$Samples, 1, nchar(as.character(preprocess$Samples))-5)
-decontam <- cbind.data.frame(Samples=preprocess$Samples, false=preprocess$false, true=preprocess$true)
-decontam$Human_percent <- (decontam$true * 100)/(decontam$true + decontam$false)
-colnames(decontam) <- c("Samples","Non-HumanReads", "HumanReads", "HumanReadsPercent" )
-pander(decontam, split.table = Inf)
+read.table("preprocess_summary.tsv", header = T) %>%
+  mutate(Samples = sub(".json", "", Samples, fixed = TRUE)) %>%
+  mutate(
+    `Percent host reads` = 100 * true / (true + false),
+    `Percent host reads` = round(`Percent host reads`, 2)) %>%
+  select(
+    Sample = Samples,
+    `Host reads` = true,
+    `Non-host reads` = false,
+    `Percent host reads`) %>%
+  pander(split.table = Inf)
 ```
 
