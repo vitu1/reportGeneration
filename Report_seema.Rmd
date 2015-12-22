@@ -165,7 +165,9 @@ read_metaphlan2_table <- function (filepath, sample_prefix="PCMP_") {
 props <- read_metaphlan2_table("taxonomic_assignments.tsv")
 adf <- split_assignments(rownames(props), split = "\\|")
 a <- simplify_assignments(adf, rank2 = "Species")
+```
 
+```{r}
 plotdata <- props
 rownames(plotdata) <- a
 maxprops <- apply(plotdata, 1, max)
@@ -200,19 +202,22 @@ Here, we use Bray-Curtis distance to compare the species composition of the samp
 The first plot shows the distance between each pair of samples in a single 2D plot.  It is not possible to plot the distances exactly on paper, so we have used a method of ordination called Principal Coordinates Analysis to select the best coordinate system for display.  The percentage of total variance captured along each axis is displayed on the chart.  It is typical for the percentage to be somewhat low if there are many samples, all different in a variety of ways.
 
 ```{r}
+matrix_to_sample_df <- function (x) {
+  df <- data.frame(SampleID=rownames(x), stringsAsFactors = FALSE)
+  cbind(df, x)
+}
+
 bc <- vegdist(t(props))
 pc <- pcoa(bc)
-
-pc_df <- data.frame(Sample = rownames(pc$vectors), stringsAsFactors = FALSE)
-pc_df <- cbind(pc_df, pc$vectors[pc_df$Sample, 1:3])
-rownames(pc_df) <- NULL
+pc_df <- matrix_to_sample_df(pc$vectors[,1:3]) %>%
+  inner_join(s, by="SampleID")
 
 pc_pct <- round(pc$values$Relative_eig * 100)
 ```
 
 ```{r, fig.width=6, fig.height=5}
 ggplot(pc_df) +
-  geom_point(aes(x=Axis.1, y=Axis.2)) +
+  geom_point(aes_string(x="Axis.1", y="Axis.2", color=color_by)) +
   theme_bw() +
   labs(
     x = paste0("PCoA axis 1 (", pc_pct[1], "%)"),
@@ -241,16 +246,15 @@ Here, we use Jaccard distance to compare samples based on shared species members
 jc <- dist(t(props), method = "binary")
 pc <- pcoa(jc)
 
-pc_df <- data.frame(Sample = rownames(pc$vectors), stringsAsFactors = FALSE)
-pc_df <- cbind(pc_df, pc$vectors[pc_df$Sample, 1:3])
-rownames(pc_df) <- NULL
+pc_df <- matrix_to_sample_df(pc$vectors[,1:3]) %>%
+  inner_join(s, by="SampleID")
 
 pc_pct <- round(pc$values$Relative_eig * 100)
 ```
 
 ```{r, fig.width=6, fig.height=5}
 ggplot(pc_df) +
-  geom_point(aes(x=Axis.1, y=Axis.2)) +
+  geom_point(aes_string(x="Axis.1", y="Axis.2", color=color_by)) +
   theme_bw() +
   labs(
     x = paste0("PCoA axis 1 (", pc_pct[1], "%)"),
