@@ -15,6 +15,26 @@ library(png)
 library(grid)
 library(pander)
 library(stringr)
+library(reshape2)
+```
+
+
+```{r sample_sheet_import, echo=FALSE}
+mapping_file_name <- "20151210_seema_metadata.txt"
+s <- read.table(mapping_file_name, sep='\t',  header=TRUE, stringsAsFactors = FALSE)
+s$SampleID <- as.character(s$SampleID)
+
+color_by <- ''
+shape_by <- ''
+potential_headers <- c('study_group', 'study_day', 'current_antibiotics', 'cage_number', 'mouse_strain')
+header_idx <- which(is.element(potential_headers, colnames(s)))
+
+if(length(header_idx)>0){
+  color_by <- potential_headers[header_idx[1]]
+}
+if(length(header_idx)>1){
+  shape_by <- potential_headers[header_idx[2]]
+}
 ```
 
 ### Introduction
@@ -46,16 +66,24 @@ Samples were sequences on Hiseq 2000 and were demultiplexed and analyzed for seq
 Please see attached file, `quality_after.pdf`.
 
 ```{r,fig.width=7, fig.height=5, fig.align='center', echo=FALSE}
-fp = file.path(work_dir, 'fastqc_after_trim_quality.tsv')
+fp <- file.path(work_dir, 'fastqc_after_trim_quality.tsv')
 
-quality = read.table(fp, sep='\t', header=TRUE, stringsAsFactors = FALSE, row.names = 1)
+quality <- read.table(fp, sep='\t', header=TRUE, stringsAsFactors = FALSE, row.names = 1)
 
-pos = gsub('X', '', colnames(quality))
-pos = sapply(pos, function(x) mean(as.numeric(unlist(strsplit(x, '[.]')))))
+pos <- gsub('X', '', colnames(quality))
+pos <- sapply(pos, function(x) mean(as.numeric(unlist(strsplit(x, '[.]')))))
 
-df = data.frame(pos=pos,
-                mn=colMeans(quality),
-                std=apply(quality, 2, sd))
+idx_R1 <- grep('_R1\\>', rownames(quality))
+idx_R2 <- grep('_R2\\>', rownames(quality))
+
+df <- data.frame(pos=pos,
+                mn_R1=colMeans(quality[idx_R1,]),
+                std_R1=apply(quality[idx_R1,], 2, sd),
+                mn_R2=colMeans(quality[idx_R2,]),
+                std_R2=apply(quality[idx_R2,], 2, sd))
+
+melted <- melt(df, pos, c(mn_R1, mn_R2, std_R1, std_R2))
+
 
 ggplot(df, aes(x=pos, y=mn)) + 
   geom_errorbar(aes(ymin=mn-std, ymax=mn+std), width=.1) +
@@ -92,7 +120,7 @@ preprocess <- read.table("preprocess_summary.tsv", header = T)
 preprocess$Samples <- substr(preprocess$Samples, 1, nchar(as.character(preprocess$Samples))-5)
 decontam <- cbind.data.frame(Samples=preprocess$Samples, false=preprocess$false, true=preprocess$true)
 decontam$Human_percent <- (decontam$true * 100)/(decontam$true + decontam$false)
-colnames(decontam) <- c("Samples","Non-HumanReads", "HumanReads", "HumanReadsPercent" )
+colnames(decontam) <- c("Samples","Non-RatReads", "RatReads", "RatReadsPercent" )
 pander(decontam, split.table = Inf)
 ```
 
