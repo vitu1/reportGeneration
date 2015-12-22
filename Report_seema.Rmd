@@ -43,7 +43,9 @@ Overall:
 Goal 1 and 2 can be achieved through a single experiment with three group of rats (control, resilient, vulnerable) and fecal samples collected pre-stress and after the stress phenotype is established. Goal 3 is a bigger study requiring more controls. Woulds also serve to validate the initial findings in a seperate cohort of animals in addition to testing a novel way to promote resilience.
 
 ### Demultiplexing and quality control
-Samples were sequences on Hiseq 2000 and were demultiplexed and analyzed for sequencing quality using FASTQC. Nextera-XT adapters were used while sequencing which were removed by the trimming of adapters using trimmomatic-0.33. A second quality control step using FASTQC was performed to check quality of sequences after adapter trimming.
+Samples were sequences on Hiseq 2000 and were demultiplexed and analyzed for sequencing quality using FASTQC. The demultiplexing step involves identifing DNA barcodes from the high-throughput data files generated from the Hiseq run. Reads for each sample sequenced is identified by matching the barcode associated with the samples and the data is then outputted in fastq format with each sample having one forward and reverse strand fastq file.
+
+Nextera-XT adapters were used while sequencing which were removed by the trimming of adapters using trimmomatic-0.33. A second quality control step using FASTQC was performed to check quality of sequences after adapter trimming.
 
 **Figure 1: Number of read pairs in samples after demultiplexing**
 
@@ -61,12 +63,10 @@ num_seq = data.frame(numSeq = data[,1], count = data[,1]/1000000)
 num_seq$toPlot = row.names(num_seq) != 'unassigned'
 num_seq$toPlot[grep('negative|vibriolambda|crypto', row.names(num_seq))] = FALSE
 
-mean(num_seq$count[num_seq$toPlot])
-
 write.table(data, file=save_fp_txt, quote=FALSE, col.names=FALSE, sep='\t')
 
 ggplot(num_seq[num_seq$toPlot,], aes(x=count)) +
-  geom_histogram() +
+  geom_histogram(binwidth = 0.5) +
   theme_classic() +
   theme_bw() + 
   xlab("Number of read pairs in sample (millions, M)") +
