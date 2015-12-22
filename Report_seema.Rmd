@@ -40,31 +40,32 @@ Goal 1 and 2 can be achieved through a single experiment with three group of rat
 ### Demultiplexing and quality control
 Samples were sequences on Hiseq 2000 and were demultiplexed and analyzed for sequencing quality using FASTQC. Nextera-XT adapters were used while sequencing which were removed by the trimming of adapters using trimmomatic-0.33. A second quality control step using FASTQC was performed to check quality of sequences after adapter trimming.
 
-**Figure 1: Heatmap showing read length distribution before adapter trimming**
 
-Please see attached file, `length_before.pdf`.
+**Figure 1: Average nucleotide quality after adapter trimming and quality control**
 
-```{r,fig.width=4, fig.height=10, fig.align='center', echo=FALSE}
-before <- read.table("fastqc_before_trim_quality.tsv", header = T)
-rownames(before) <- before$Samples
-before$Samples <- NULL
-pheatmap(
-  before, filename = "length_before.pdf",
-  cellwidth = 9, cellheight = 9, fontsize = 10)
-```
+Please see attached file, `quality_after.pdf`.
 
+```{r,fig.width=7, fig.height=5, fig.align='center', echo=FALSE}
+fp = file.path(work_dir, 'fastqc_after_trim_quality.tsv')
 
-**Figure 2: Heatmap showing read length distribution after adapter trimming**
+quality = read.table(fp, sep='\t', header=TRUE, stringsAsFactors = FALSE, row.names = 1)
 
-Please see attached file, `length_after.pdf`.
+pos = gsub('X', '', colnames(quality))
+pos = sapply(pos, function(x) mean(as.numeric(unlist(strsplit(x, '[.]')))))
 
-```{r,fig.width=5, fig.height=15, fig.align='center', echo=FALSE}
-after <- read.table("fastqc_after_trim_quality.tsv", header = T)
-rownames(after) <- after$Samples
-after$Samples <- NULL
-pheatmap(
-  after, filename = "length_after.pdf",
-  cellwidth = 9, cellheight = 9, fontsize = 10)
+df = data.frame(pos=pos,
+                mn=colMeans(quality),
+                std=apply(quality, 2, sd))
+
+ggplot(df, aes(x=pos, y=mn)) + 
+  geom_errorbar(aes(ymin=mn-std, ymax=mn+std), width=.1) +
+  geom_line() +
+  geom_point() +
+  theme_bw() + 
+  xlab('nucleotide position') +
+  ylab('quality score')
+ggsave(filename='quality_after.pdf', width=7, height=5, units='in')
+
 ```
 
 
@@ -98,7 +99,7 @@ pander(decontam, split.table = Inf)
 ### Taxonomic assignments using Metaphlan2
 Taxonomic assignments were performned using Metaphlan2. A heatmap was generated from the results of taxonomic assignments.
 
-**Figure 3: Heatmap generated after taxonomic assignments using Metaphlan2**
+**Figure 2: Heatmap generated after taxonomic assignments using Metaphlan2**
 
 Please see attached file, `taxonomic_assignments.pdf`.
 
@@ -131,7 +132,7 @@ pheatmap(
 ### Pathway abundance 
 Presence/abscence and abundance of genes in pathways was evaluated by mapping reads to KEGG database using RAPsearch and then abundace were calculated. 
 
-**Figure 4: Heatmap generated after mapping against KEGG database showing presence/absence and abundance of genes in pathways**
+**Figure 3: Heatmap generated after mapping against KEGG database showing presence/absence and abundance of genes in pathways**
 
 Please see attached file, `gene_function_assignments.pdf`.
 
