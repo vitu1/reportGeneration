@@ -1,7 +1,7 @@
 ---
 title: "Basic Bioinformatics Overview"
-author: "Ashwini Patil"
-date: "December 21, 2015"
+author: "PennChop Microbiome Program"
+date: "December 22, 2015"
 output: pdf_document
 ---
 
@@ -71,7 +71,7 @@ Nextera-XT adapters were used while sequencing which were removed by the trimmin
 
 **Figure 1: Number of read pairs in samples after demultiplexing**
 
-Please see attached file, `quality_after.pdf`.
+Please see attached file, `demultiplex_summary.pdf`.
 
 ```{r,fig.width=7, fig.height=5, fig.align='center', echo=FALSE}
 fp = file.path('summary-dnabc.json')
@@ -274,20 +274,50 @@ par(cex=1)
 ```
 
 
-### Pathway abundance 
-Presence/abscence and abundance of genes in pathways was evaluated by mapping reads to KEGG database using RAPsearch and then abundace were calculated. 
+### Functional assignment of reads matching to known genes
+Abundance of Kyoto Encyclopedia of Genes and Genomes (KEGG) orthologs (KO) were calculated. Here, we use Bray-Curtis distance to compare the KO composition of the samples to each other.
 
-**Figure 4: Heatmap generated after mapping against KEGG database showing presence/absence and abundance of genes in pathways**
+The plot shows the ordination plot using Principal Coordinates Analysis as described above.
 
 Please see attached file, `gene_function_assignments.pdf`.
 
 ```{r,echo=FALSE}
-s <- read.delim("ko_assignments.tsv", comment.char="#")
-rownames(s) <- s$Term
-s$Term <- NULL
-pheatmap(
-  s, filename = "gene_function_assignments.pdf",
-  cellwidth = 9, cellheight = 9, fontsize = 10)
+ko <- read.table("ko_assignments.tsv", sep='\t', header=TRUE, stringsAsFactors = FALSE, row.names = 1)
+ko <- subset(ko, select = -grep('negative|vibriolambda|crypto', colnames(ko)))
+ko <- sweep(ko, 2, colSums(ko), "/")
+
+bc <- vegdist(t(ko), method='bray')
+ko_pca <- pcoa(bc)
+
+temp_vectors <- ko_pca$vectors[, 1:5]
+rownames(temp_vectors) <- gsub('PCMP_', '', rownames(temp_vectors))
+#temp_vectors <- temp_vectors[s$SampleID,]
+
+ko_df <- merge(s, temp_vectors, by.x="SampleID", by.y="row.names")
+ko_pct <- round(ko_pca$values$Relative_eig * 100)
+
+g_uu <- ggplot(ko_df, aes(x=Axis.1, y=Axis.2)) +
+  coord_equal() +
+  theme_bw() +
+  xlab(paste0("PCoA axis 1 (", ko_pct[1], "%)")) +
+  ylab(paste0("PCoA axis 2 (", ko_pct[2], "%)")) +
+  scale_shape_discrete(name=shape_by) + 
+  scale_colour_discrete(name=color_by) +
+  ggtitle('PCoA plot based on bray-curtis distances')
+
+if (shape_by =='' & color_by!='') {
+  g_uu <- g_uu + geom_point(aes(colour=factor(get(color_by))))
+} else if (shape_by!='' & color_by!='') {
+  g_uu <- g_uu + geom_point(aes(colour=factor(get(color_by)), shape=factor(get(shape_by))))
+} else {
+  g_uu <- g_uu + geom_point()
+}
+show(g_uu)
+
+
+#pheatmap(
+#  ko, filename = "gene_function_assignments.pdf",
+#  cellwidth = 9, cellheight = 9, fontsize = 10)
 ```
 
 ## Appendix
