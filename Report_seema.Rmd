@@ -248,13 +248,24 @@ pc_pct <- round(pc$values$Relative_eig * 100)
 ```
 
 ```{r, fig.width=6, fig.height=5}
-ggplot(pc_df) +
-  geom_point(aes_string(x="Axis.1", y="Axis.2", color=color_by)) +
+g_bray = ggplot(pc_df, aes_string(x="Axis.1", y="Axis.2")) +
+  #geom_point(aes_string(x="Axis.1", y="Axis.2", color=color_by)) +
   theme_bw() +
+  scale_shape_discrete(name=shape_by) + 
+  scale_colour_discrete(name=color_by) +
   labs(
     x = paste0("PCoA axis 1 (", pc_pct[1], "%)"),
     y = paste0("PCoA axis 2 (", pc_pct[2], "%)"),
     title = 'Ordination based on Bray-Curtis distance')
+
+if (shape_by == '' & color_by!='') {
+  g_bray <- g_bray + geom_point(aes(colour=factor(get(color_by))))
+} else if (shape_by!='' & color_by!='') {
+  g_bray <- g_bray + geom_point(aes(colour=factor(get(color_by)), shape=factor(get(shape_by))))
+} else {
+  g_bray <- g_bray + geom_point()
+}
+show(g_bray)
 ```
 
 The second plot shows sample clustering based on Bray-Curtis distance.  We have used a method of hierarchical clustering called "average-linkage" or UPGMA.  At the bottom of the dendrogram, all samples start out in their own group.  Moving up the dendrogram, samples accumulate into clusters if the average (mean) distance between all samples is below the indicated value.
@@ -285,13 +296,24 @@ pc_pct <- round(pc$values$Relative_eig * 100)
 ```
 
 ```{r, fig.width=6, fig.height=5}
-ggplot(pc_df) +
-  geom_point(aes_string(x="Axis.1", y="Axis.2", color=color_by)) +
+g_jac = ggplot(pc_df, aes_string(x="Axis.1", y="Axis.2")) +
+  #geom_point(aes_string(x="Axis.1", y="Axis.2", color=color_by)) +
   theme_bw() +
+  scale_shape_discrete(name=shape_by) + 
+  scale_colour_discrete(name=color_by) +
   labs(
     x = paste0("PCoA axis 1 (", pc_pct[1], "%)"),
     y = paste0("PCoA axis 2 (", pc_pct[2], "%)"),
     title = 'Ordination based on Jaccard distance')
+
+if (shape_by == '' & color_by!='') {
+  g_jac <- g_jac + geom_point(aes(colour=factor(get(color_by))))
+} else if (shape_by!='' & color_by!='') {
+  g_jac <- g_jac + geom_point(aes(colour=factor(get(color_by)), shape=factor(get(shape_by))))
+} else {
+  g_jac <- g_jac + geom_point()
+}
+show(g_jac)
 ```
 
 ```{r, fig.width=6, fig.height=6}
@@ -346,10 +368,12 @@ if (shape_by =='' & color_by!='') {
 }
 show(g_uu)
 
-
-#pheatmap(
-#  ko, filename = "gene_function_assignments.pdf",
-#  cellwidth = 9, cellheight = 9, fontsize = 10)
+ko <- read.delim("ko_assignments.tsv", comment.char="#")
+rownames(ko) <- ko$Term
+ko$Term <- NULL
+pheatmap(
+  ko, filename = "gene_function_assignments.pdf",
+  cellwidth = 9, cellheight = 9, fontsize = 10)
 ```
 
 ## Appendix
