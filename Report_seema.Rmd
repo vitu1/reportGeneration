@@ -71,7 +71,6 @@ Nextera-XT adapters were used while sequencing which were removed by the trimmin
 
 **Figure 1: Number of read pairs in samples after demultiplexing**
 
-Please see attached file, `demultiplex_summary.pdf`.
 
 ```{r,fig.width=7, fig.height=5, fig.align='center', echo=FALSE}
 fp = file.path('summary-dnabc.json')
@@ -98,7 +97,6 @@ ggsave(filename=save_fp, width=7, height=5, units='in')
 
 **Figure 2: Average nucleotide quality after adapter trimming and quality control**
 
-Please see attached file, `quality_after.pdf`.
 
 ```{r,fig.width=7, fig.height=5, fig.align='center', echo=FALSE}
 fp = file.path('fastqc_after_trim_quality.tsv')
