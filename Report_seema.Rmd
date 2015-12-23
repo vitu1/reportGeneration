@@ -128,12 +128,46 @@ ggsave(filename='quality_after.pdf', width=7, height=5, units='in')
 ```
 
 
-Nextera-XT adapters were trimmed using trimmomatic and Table 1 (Appendix) shows the number of sequenced reads and number reads retrieved from both strands after adapter trimming.
+Nextera-XT adapters were trimmed using trimmomatic and Table 1 (see Appendix) shows the number of sequenced reads and number reads retrieved from both strands after adapter trimming.
 
+**Figure 3: Overall distribution of percentage reads removed in quality control**
+
+```{r,fig.width=7, fig.height=5, fig.align='center', echo=FALSE}
+preprocess <- read.table("preprocess_summary.tsv", header = T)
+preprocess$Samples <- substr(preprocess$Samples, 1, nchar(as.character(preprocess$Samples))-5)
+illqc <- preprocess[,1:6]
+colnames(illqc) <- c("Samples","BothKept", "Dropped", "ForwardOnly", "Input", "ReverseOnly")
+illqc$per_dropped <- (illqc$Dropped *100)/illqc$Input
+
+
+m <- ggplot(illqc, aes(x=per_dropped))
+m + geom_histogram(binwidth = 0.5) +
+theme_classic() +
+  theme_bw() + 
+  xlab("Percentage of reads removed after quality control") +
+  ylab("Number of samples") 
+```
 
 
 ### Human DNA filtering
-Human DNA was filtered using BWA with HG38 version of human genome as reference. At the end of the filtering step the reads were divided into 2 files containing Human DNA and non-human DNA for each sample. Table 2 (Appendix) list out the number of human and non-human reads and the human percentage in the samples.
+Human DNA was filtered using BWA with HG38 version of human genome as reference. At the end of the filtering step the reads were divided into 2 files containing Human DNA and non-human DNA for each sample. Table 2 (see Appendix) list out the number of human and non-human reads and the human percentage in the samples.
+
+**Figure 4: Percentage of host reads in the samples**
+
+```{r,fig.width=7, fig.height=5, fig.align='center', echo=FALSE}
+preprocess <- read.table("preprocess_summary.tsv", header = T)
+preprocess$Samples <- substr(preprocess$Samples, 1, nchar(as.character(preprocess$Samples))-5)
+decontam <- cbind.data.frame(Samples=preprocess$Samples, false=preprocess$false, true=preprocess$true)
+decontam$Human_percent <- (decontam$true * 100)/(decontam$true + decontam$false)
+colnames(decontam) <- c("Samples","Non-HumanReads", "HumanReads", "HumanReadsPercent" )
+
+m <- ggplot(decontam, aes(x=HumanReadsPercent))
+m + geom_histogram(binwidth = 0.5) +
+theme_classic() +
+  theme_bw() + 
+  xlab("Percentage of host reads") +
+  ylab("Number of samples") 
+```
 
 ## Taxonomic assignments
 
@@ -349,4 +383,6 @@ read.table("preprocess_summary.tsv", header = T) %>%
     `Percent host reads`) %>%
   pander(split.table = Inf)
 ```
+
+
 
