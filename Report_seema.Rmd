@@ -301,7 +301,7 @@ g_uu <- ggplot(ko_df, aes(x=Axis.1, y=Axis.2)) +
   ylab(paste0("PCoA axis 2 (", ko_pct[2], "%)")) +
   scale_shape_discrete(name=shape_by) + 
   scale_colour_discrete(name=color_by) +
-  ggtitle('PCoA plot based on bray-curtis distances')
+  ggtitle('PCoA plot based on Bray-Curtis distances')
 
 if (shape_by =='' & color_by!='') {
   g_uu <- g_uu + geom_point(aes(colour=factor(get(color_by))))
