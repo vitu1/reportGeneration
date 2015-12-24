@@ -71,7 +71,6 @@ Nextera-XT adapters were used while sequencing which were removed by the trimmin
 
 **Figure 1: Number of read pairs in samples after demultiplexing**
 
-
 ```{r,fig.width=7, fig.height=5, fig.align='center', echo=FALSE}
 fp = file.path('summary-dnabc.json')
 save_fp = gsub(pattern = ".json", replacement = ".pdf", fp)
@@ -168,6 +167,7 @@ theme_classic() +
   xlab("Percentage of host reads") +
   ylab("Number of samples") 
 ```
+
 
 ## Taxonomic assignments
 
