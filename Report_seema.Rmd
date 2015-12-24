@@ -1,6 +1,6 @@
 ---
 title: "Basic Bioinformatics Overview"
-author: "PennChop Microbiome Program"
+author: "PennCHOP Microbiome Program"
 date: "December 22, 2015"
 output: pdf_document
 ---
@@ -132,7 +132,7 @@ Nextera-XT adapters were trimmed using trimmomatic and Table 1 (see Appendix) sh
 
 **Figure 3: Overall distribution of percentage reads removed in quality control**
 
-```{r,fig.width=7, fig.height=5, fig.align='center', echo=FALSE}
+```{r,fig.width=5, fig.height=3, fig.align='center', echo=FALSE}
 preprocess <- read.table("preprocess_summary.tsv", header = T)
 preprocess$Samples <- substr(preprocess$Samples, 1, nchar(as.character(preprocess$Samples))-5)
 illqc <- preprocess[,1:6]
@@ -154,7 +154,7 @@ Human DNA was filtered using BWA with HG38 version of human genome as reference.
 
 **Figure 4: Percentage of host reads in the samples**
 
-```{r,fig.width=7, fig.height=5, fig.align='center', echo=FALSE}
+```{r,fig.width=5, fig.height=3, fig.align='center', echo=FALSE}
 preprocess <- read.table("preprocess_summary.tsv", header = T)
 preprocess$Samples <- substr(preprocess$Samples, 1, nchar(as.character(preprocess$Samples))-5)
 decontam <- cbind.data.frame(Samples=preprocess$Samples, false=preprocess$false, true=preprocess$true)
@@ -195,6 +195,9 @@ read_metaphlan2_table <- function (filepath, sample_prefix="PCMP_") {
 }
 
 props <- read_metaphlan2_table("taxonomic_assignments.tsv")
+lab_control_idx <- grep('negative|vibriolambda|crypto', colnames(props))
+props <- props[,-lab_control_idx]
+
 adf <- split_assignments(rownames(props), split = "\\|")
 a <- simplify_assignments(adf, rank2 = "Species")
 ```
@@ -331,13 +334,13 @@ par(cex=1)
 ### Functional assignment of reads matching to known genes
 Abundance of Kyoto Encyclopedia of Genes and Genomes (KEGG) orthologs (KO) were calculated. Here, we use Bray-Curtis distance to compare the KO composition of the samples to each other.
 
-The plot shows the ordination plot using Principal Coordinates Analysis as described above.
-
-Please see attached file, `gene_function_assignments.pdf`.
+The plot shows the ordination plot using Principal Coordinates Analysis, as described above.
 
 ```{r,echo=FALSE}
 ko <- read.table("ko_assignments.tsv", sep='\t', header=TRUE, stringsAsFactors = FALSE, row.names = 1)
-ko <- subset(ko, select = -grep('negative|vibriolambda|crypto', colnames(ko)))
+lab_control_idx <- grep('negative|vibriolambda|crypto', colnames(ko))
+ko <- ko[,-lab_control_idx]
+
 ko <- sweep(ko, 2, colSums(ko), "/")
 
 bc <- vegdist(t(ko), method='bray')
@@ -367,12 +370,18 @@ if (shape_by =='' & color_by!='') {
   g_uu <- g_uu + geom_point()
 }
 show(g_uu)
+```
 
-ko <- read.delim("ko_assignments.tsv", comment.char="#")
-rownames(ko) <- ko$Term
-ko$Term <- NULL
+A heatmap of the gene proportions is included in the attached file, `gene_function_assignments.pdf`.  The top 75 gene categories are shown, selected by mean abundance.  Samples and gene categories are clustered by Canberra distance.
+
+```{r}
+top_ko <- names(sort(rowMeans(ko), decreasing = TRUE))[1:75]
+ko_heatmap <- ko[rownames(ko) %in% top_ko,]
 pheatmap(
-  ko, filename = "gene_function_assignments.pdf",
+  ko_heatmap,
+  filename = "gene_function_assignments.pdf",
+  clustering_distance_rows = "canberra",
+  clustering_distance_cols = "canberra",
   cellwidth = 9, cellheight = 9, fontsize = 10)
 ```
 
