@@ -15,7 +15,7 @@ SCRIPT_DIR="${HOME}/.virtualenvs/shotgun-pipeline/bin"
 "${SCRIPT_DIR}/preprocess_report.py" \
     --illqc-dir "${WORK_DIR}/summary" \
     --decontam-dir "${WORK_DIR}/summary" \
-    --decontam-prefix summary-decontam_human_ \
+    --decontam-prefix summary-decontam_host_ \
     --output-fp "${WORK_DIR}/preprocess_summary.tsv"
 
 # make fastqc reports
