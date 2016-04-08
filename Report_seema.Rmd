@@ -11,8 +11,7 @@ knitr::opts_chunk$set(echo=FALSE)
 
 ```{r, message=FALSE, warning=FALSE}
 library(pheatmap)
-library(rjson)
-library(png)
+#library(png)
 library(grid)
 library(pander)
 library(stringr)
@@ -27,7 +26,7 @@ library(tidyr)
 
 
 ```{r sample_sheet_import, echo=FALSE}
-mapping_file_name <- "20151210_seema_metadata.txt"
+mapping_file_name <- "metadata.txt"
 s <- read.table(mapping_file_name, sep='\t',  header=TRUE, stringsAsFactors = FALSE)
 s$SampleID <- as.character(s$SampleID)
 
@@ -42,73 +41,55 @@ if(length(header_idx)>0){
 if(length(header_idx)>1){
   shape_by <- potential_headers[header_idx[2]]
 }
+
+quality_summary_headers <- c('SampleType', 'study_day')
+header_idx <- which(is.element(quality_summary_headers, colnames(s)))
+quality_by <- ifelse(length(header_idx)>0, quality_summary_headers[header_idx[1]], '')
 ```
 
-### Introduction
-In our previous working adult, male rats, we found that a sub-population exposed to chronic social defeat over 5-7 days exhibits behavioral vurnerability (increased passive coping, anxiety-like and depressive-like behavior) whereas the other sub-population exhibits resilience to these effects of defeat. Our overall goal is to understand the neural mechanisms that produce vulnerability and resilence in order to reduce vulnerability and promote resilence. This work has transational relevance because chronic stress is associated with post-traumatic stress disorder and depression. We have also determined that circulating microRNA profiles of rats that go on to be vulnerable are different. Thus, we are interested in biomarkers that can predict future vulnerability or resilience.
+# Introduction
+*Insert project specific paragraph here*
 
-This project has three goals and purposes to use fecal samples.
+\newpage
 
-Goal 1:
-To determine whether vulnerable and resilient rats have different gut microbiome profiles.
-Hypothesis: Rats vulnerable to stress will exhibit a different gut microbiome profile compared to resilient or non-stressed controls.
-
-Goal 2:
-To determine whether the gut microbiome profile at pre-stress timepoints is different before the rats become resilient or vurnerable.
-Hypothesis: Gut microbiome profiles prior to stress may predict which individuals will be vunerable or resilient to future mess.
-
-Goal 3:
-To determine whether vulnerable rats can be made resilient by pair-housing with a resilient rats.
-Hypothesis: Such pair-housing may shift the vulnerable phenotype to a resilient one due to transfer of microbiome through coprophagia.
-
-Overall:
-Goal 1 and 2 can be achieved through a single experiment with three group of rats (control, resilient, vulnerable) and fecal samples collected pre-stress and after the stress phenotype is established. Goal 3 is a bigger study requiring more controls. Woulds also serve to validate the initial findings in a seperate cohort of animals in addition to testing a novel way to promote resilience.
-
-### Demultiplexing and quality control
-Samples were sequences on Hiseq 2000 and were demultiplexed and analyzed for sequencing quality using FASTQC. The demultiplexing step involves identifing DNA barcodes from the high-throughput data files generated from the Hiseq run. Reads for each sample sequenced is identified by matching the barcode associated with the samples and the data is then outputted in fastq format with each sample having one forward and reverse strand fastq file.
+# Demultiplexing and quality control
+Samples were sequences on Hiseq 2500 and were demultiplexed and analyzed for sequencing quality using FASTQC. The demultiplexing step involves identifing DNA barcodes from the high-throughput data files generated from the Hiseq run. Reads for each sample sequenced is identified by matching the barcode associated with the samples and the data is then outputted in fastq format with each sample having one forward and reverse strand fastq file.
 
 Nextera-XT adapters were used while sequencing which were removed by the trimming of adapters using trimmomatic-0.33. A second quality control step using FASTQC was performed to check quality of sequences after adapter trimming.
 
-**Figure 1: Number of read pairs in samples after demultiplexing**
+###Figure 1: Number of read pairs per sample after demultiplexing
 
 ```{r,fig.width=7, fig.height=5, fig.align='center', echo=FALSE}
-fp = file.path('summary-dnabc.json')
-save_fp = gsub(pattern = ".json", replacement = ".pdf", fp)
-save_fp_txt = gsub(pattern = ".json", replacement = ".txt", fp)
-
-json_data <- fromJSON(file=fp)
-data = t(data.frame(json_data$data)) # this line may need work
-num_seq = data.frame(numSeq = data[,1], count = data[,1]/1000000)
-
-num_seq$toPlot = row.names(num_seq) != 'unassigned'
-num_seq$toPlot[grep('negative|vibriolambda|crypto', row.names(num_seq))] = FALSE
-
-write.table(data, file=save_fp_txt, quote=FALSE, col.names=FALSE, sep='\t')
-
-ggplot(num_seq[num_seq$toPlot,], aes(x=count)) +
-  geom_histogram(binwidth = 0.5) +
-  theme_classic() +
-  theme_bw() + 
-  xlab("Number of read pairs in sample (millions, M)") +
-  ylab("Number of samples") 
-ggsave(filename=save_fp, width=7, height=5, units='in')
+read.table("preprocess_summary.tsv", header = T) %>%
+  mutate(Samples = sub(".json", "", Samples)) %>%
+  mutate(num_seq=input/1000000) %>%
+  filter(!grepl('positive|negative|vibriolambda|crypto|blank|environmental|mock', Samples, ignore.case=TRUE)) %>%
+  ggplot(aes(x=num_seq)) +
+    geom_histogram(binwidth = 2) +
+    theme_classic() +
+    theme_bw() + 
+    xlab("Number of read pairs in sample (millions, M)") +
+    ylab("Number of samples")
+#ggsave(filename="summary_dnabc.pdf", width=7, height=5, units='in')
 ```
 
-**Figure 2: Average nucleotide quality after adapter trimming and quality control**
+\newpage
+
+###Figure 2: Average nucleotide quality after adapter trimming and quality control
 
 
 ```{r,fig.width=7, fig.height=5, fig.align='center', echo=FALSE}
 fp = file.path('fastqc_after_trim_quality.tsv')
 
+rexp <- "^(.*)_(R[12])$"
 quality <- read.table(fp, sep='\t', header=TRUE) %>%
-  rename(Sample = Samples) %>%
-  melt(id.vars="Sample", variable.name="Position", value.name = "Quality") %>%
+  melt(id.vars="Samples", variable.name="Position", value.name = "Quality") %>%
   mutate(
     Position = sub("X", "", Position),
     Position = sub("\\.\\d+", "", Position, perl = TRUE),
     Position = as.numeric(Position),
-    Sample = sub("PCMP_", "", Sample, fixed = TRUE)) %>%
-  separate(Sample, c("Sample", "Direction"), sep="_") %>%
+    Samples = sub("PCMP_", "", Samples, fixed = TRUE)) %>%
+  mutate(Sample=sub(rexp,"\\1",Samples), Direction=sub(rexp,"\\2",Samples)) %>%
   mutate(Direction = factor(Direction))
 
 ave_quality <- group_by(quality, Direction, Position) %>%
@@ -122,54 +103,42 @@ ggplot(ave_quality, aes(x=Position, y=MeanQual)) +
   geom_point() +
   theme_bw() + 
   labs(x='Position in sequence read', y='Average quality score per sample')
-ggsave(filename='quality_after.pdf', width=7, height=5, units='in')
-
+#ggsave(filename='quality_after.pdf', width=7, height=5, units='in')
 ```
 
 
-Nextera-XT adapters were trimmed using trimmomatic and Table 1 (see Appendix) shows the number of sequenced reads and number reads retrieved from both strands after adapter trimming.
+Nextera-XT adapters were trimmed using trimmomatic and Table 1 (see Appendix) shows the number of sequenced reads and number reads retrieved from both strands after adapter trimming. Human DNA was filtered using BWA with HG38 version of human genome as reference. At the end of the filtering step the reads were divided into 2 files containing Human DNA and non-human DNA for each sample. Table 2 (see Appendix) list out the number of human and non-human reads and the human percentage in the samples.
 
-**Figure 3: Overall distribution of percentage reads removed in quality control**
+\newpage
+
+###Figure 3: Overall distribution of percentage reads removed in quality control
 
 ```{r,fig.width=5, fig.height=3, fig.align='center', echo=FALSE}
-preprocess <- read.table("preprocess_summary.tsv", header = T)
-preprocess$Samples <- substr(preprocess$Samples, 1, nchar(as.character(preprocess$Samples))-5)
-illqc <- preprocess[,1:6]
-colnames(illqc) <- c("Samples","BothKept", "Dropped", "ForwardOnly", "Input", "ReverseOnly")
-illqc$per_dropped <- (illqc$Dropped *100)/illqc$Input
+preprocess <- read.table("preprocess_summary.tsv", header = T) %>%
+  mutate(Samples = sub(".json", "", Samples)) %>%
+  mutate(low_quality = (fwd_only + rev_only + dropped) / input) %>%
+  mutate(human = true / input) %>%
+  mutate(non_human = false / input) %>%
+  filter(!grepl('positive|negative|vibriolambda|crypto|blank|environmental|mock', Samples, ignore.case=TRUE)) %>%
+  slice(order(.$human, decreasing=TRUE)) %>%
+  mutate(Sample_num=1:dim(.)[1]) %>%
+  merge(s, by.y="SampleID", by.x="Samples") %>%
+  melt(c("Sample_num", quality_by), c("low_quality", "human", "non_human"))
 
+num_rows <- length(unique(preprocess[quality_by]))
 
-m <- ggplot(illqc, aes(x=per_dropped))
-m + geom_histogram(binwidth = 0.5) +
-theme_classic() +
-  theme_bw() + 
-  xlab("Percentage of reads removed after quality control") +
-  ylab("Number of samples") 
+ggplot(preprocess, aes(x=Sample_num, y=value)) +
+  geom_area(aes(fill=variable), position='stack') + 
+  facet_wrap(as.formula(paste("~", quality_by)), scales = "free_x", nrow = num_rows) +
+  scale_fill_brewer(palette="Set1") + 
+  theme(axis.text.x = element_blank()) +
+  scale_x_continuous(expand=c(0,0)) +
+  scale_y_continuous(expand=c(0,0)) +
+  labs(x="Samples", y="Percentage of reads", fill="")
+#ggsave(filename='preprocess_summary.pdf', width=5, height=7, units='in')
 ```
 
-
-### Human DNA filtering
-Human DNA was filtered using BWA with HG38 version of human genome as reference. At the end of the filtering step the reads were divided into 2 files containing Human DNA and non-human DNA for each sample. Table 2 (see Appendix) list out the number of human and non-human reads and the human percentage in the samples.
-
-**Figure 4: Percentage of host reads in the samples**
-
-```{r,fig.width=5, fig.height=3, fig.align='center', echo=FALSE}
-preprocess <- read.table("preprocess_summary.tsv", header = T)
-preprocess$Samples <- substr(preprocess$Samples, 1, nchar(as.character(preprocess$Samples))-5)
-decontam <- cbind.data.frame(Samples=preprocess$Samples, false=preprocess$false, true=preprocess$true)
-decontam$Human_percent <- (decontam$true * 100)/(decontam$true + decontam$false)
-colnames(decontam) <- c("Samples","Non-HumanReads", "HumanReads", "HumanReadsPercent" )
-
-m <- ggplot(decontam, aes(x=HumanReadsPercent))
-m + geom_histogram(binwidth = 0.5) +
-theme_classic() +
-  theme_bw() + 
-  xlab("Percentage of host reads") +
-  ylab("Number of samples") 
-```
-
-
-## Taxonomic assignments
+# Taxonomic assignments
 
 Taxonomic assignments were performned using the MetaPhlAn2 program. This software uses a small database of clade-specific marker genes to identify bacterial, fungal, archaeal, and viral taxa in shotgun metagenomics data.  This method sometimes misses low-abundance organisms because of the small database size.  However, taxa identified here are very likely to be authentically present in the data.
 
@@ -195,7 +164,7 @@ read_metaphlan2_table <- function (filepath, sample_prefix="PCMP_") {
 }
 
 props <- read_metaphlan2_table("taxonomic_assignments.tsv")
-lab_control_idx <- grep('negative|vibriolambda|crypto', colnames(props))
+lab_control_idx <- grep('positive|negative|vibriolambda|crypto|blank|environmental|mock', colnames(props), ignore.case = TRUE)
 props <- props[,-lab_control_idx]
 
 adf <- split_assignments(rownames(props), split = "\\|")
@@ -230,6 +199,8 @@ pheatmap(
   cellwidth = 9, cellheight = 9, fontsize = 10)
 ```
 
+\newpage
+
 #### Distance analysis: abundance weighted
 
 Here, we use Bray-Curtis distance to compare the species composition of the samples to each other.
@@ -250,6 +221,8 @@ pc_df <- matrix_to_sample_df(pc$vectors[,1:3]) %>%
 pc_pct <- round(pc$values$Relative_eig * 100)
 ```
 
+###Figure 4: Ordination based on Bray-Curtis distance
+
 ```{r, fig.width=6, fig.height=5}
 g_bray = ggplot(pc_df, aes_string(x="Axis.1", y="Axis.2")) +
   #geom_point(aes_string(x="Axis.1", y="Axis.2", color=color_by)) +
@@ -257,9 +230,9 @@ g_bray = ggplot(pc_df, aes_string(x="Axis.1", y="Axis.2")) +
   scale_shape_discrete(name=shape_by) + 
   scale_colour_discrete(name=color_by) +
   labs(
+    #title = 'Ordination based on Bray-Curtis distance',
     x = paste0("PCoA axis 1 (", pc_pct[1], "%)"),
-    y = paste0("PCoA axis 2 (", pc_pct[2], "%)"),
-    title = 'Ordination based on Bray-Curtis distance')
+    y = paste0("PCoA axis 2 (", pc_pct[2], "%)"))
 
 if (shape_by == '' & color_by!='') {
   g_bray <- g_bray + geom_point(aes(colour=factor(get(color_by))))
@@ -271,18 +244,24 @@ if (shape_by == '' & color_by!='') {
 show(g_bray)
 ```
 
+\newpage
+
 The second plot shows sample clustering based on Bray-Curtis distance.  We have used a method of hierarchical clustering called "average-linkage" or UPGMA.  At the bottom of the dendrogram, all samples start out in their own group.  Moving up the dendrogram, samples accumulate into clusters if the average (mean) distance between all samples is below the indicated value.
+
+###Figure 5: Hierarchical clustering based on Bray-Curtis distance
 
 ```{r, fig.width=6, fig.height=6}
 bc_upgma <- hclust(bc, method = "average")
 par(cex=0.5)
 plot(
-  bc_upgma, hang=-1,
+  bc_upgma, hang=-1, main="",
   ylab = "Bray-Curtis distance",
   xlab="Hierarchical clsutering",
   sub="Average-linkage method (UPGMA)")
 par(cex=1)
 ```
+
+\newpage
 
 #### Distance analysis: presence-absence
 
@@ -298,6 +277,8 @@ pc_df <- matrix_to_sample_df(pc$vectors[,1:3]) %>%
 pc_pct <- round(pc$values$Relative_eig * 100)
 ```
 
+###Figure 6: Ordination based on Jaccard distance
+
 ```{r, fig.width=6, fig.height=5}
 g_jac = ggplot(pc_df, aes_string(x="Axis.1", y="Axis.2")) +
   #geom_point(aes_string(x="Axis.1", y="Axis.2", color=color_by)) +
@@ -305,9 +286,9 @@ g_jac = ggplot(pc_df, aes_string(x="Axis.1", y="Axis.2")) +
   scale_shape_discrete(name=shape_by) + 
   scale_colour_discrete(name=color_by) +
   labs(
+    #title = 'Ordination based on Jaccard distance',
     x = paste0("PCoA axis 1 (", pc_pct[1], "%)"),
-    y = paste0("PCoA axis 2 (", pc_pct[2], "%)"),
-    title = 'Ordination based on Jaccard distance')
+    y = paste0("PCoA axis 2 (", pc_pct[2], "%)"))
 
 if (shape_by == '' & color_by!='') {
   g_jac <- g_jac + geom_point(aes(colour=factor(get(color_by))))
@@ -319,26 +300,31 @@ if (shape_by == '' & color_by!='') {
 show(g_jac)
 ```
 
+\newpage
+
+###Figure 7: Hierarchical clustering based on Jaccard distance
+
 ```{r, fig.width=6, fig.height=6}
 bc_upgma <- hclust(bc, method = "average")
 par(cex=0.5)
 plot(
-  bc_upgma, hang=-1,
+  bc_upgma, hang=-1, main="",
   ylab = "Jaccard distance",
   xlab="Hierarchical clsutering",
   sub="Average-linkage method (UPGMA)")
 par(cex=1)
 ```
 
+\newpage
 
-### Functional assignment of reads matching to known genes
+# Functional assignment of reads matching to known genes
 Abundance of Kyoto Encyclopedia of Genes and Genomes (KEGG) orthologs (KO) were calculated. Here, we use Bray-Curtis distance to compare the KO composition of the samples to each other.
 
-The plot shows the ordination plot using Principal Coordinates Analysis, as described above.
+###Figure 8: Ordination based on Bray-Curtis distance for KEGG orthology assignments
 
 ```{r,echo=FALSE}
 ko <- read.table("ko_assignments.tsv", sep='\t', header=TRUE, stringsAsFactors = FALSE, row.names = 1)
-lab_control_idx <- grep('negative|vibriolambda|crypto', colnames(ko))
+lab_control_idx <- grep('positive|negative|vibriolambda|crypto|blank|environmental|mock', colnames(ko), ignore.case = TRUE)
 ko <- ko[,-lab_control_idx]
 
 ko <- sweep(ko, 2, colSums(ko), "/")
@@ -356,11 +342,12 @@ ko_pct <- round(ko_pca$values$Relative_eig * 100)
 g_uu <- ggplot(ko_df, aes(x=Axis.1, y=Axis.2)) +
   coord_equal() +
   theme_bw() +
-  xlab(paste0("PCoA axis 1 (", ko_pct[1], "%)")) +
-  ylab(paste0("PCoA axis 2 (", ko_pct[2], "%)")) +
   scale_shape_discrete(name=shape_by) + 
   scale_colour_discrete(name=color_by) +
-  ggtitle('PCoA plot based on Bray-Curtis distances')
+  labs(
+    #title = 'PCoA plot based on Bray-Curtis distances',
+    x = paste0("PCoA axis 1 (", pc_pct[1], "%)"),
+    y = paste0("PCoA axis 2 (", pc_pct[2], "%)"))
 
 if (shape_by =='' & color_by!='') {
   g_uu <- g_uu + geom_point(aes(colour=factor(get(color_by))))
@@ -385,9 +372,11 @@ pheatmap(
   cellwidth = 9, cellheight = 9, fontsize = 10)
 ```
 
-## Appendix
+\newpage
 
-**Table 1: Number of reads before and after trimmming Illumina adapter sequences with Trimmomatic.**
+# Appendix
+
+###Table 1: Number of reads before and after trimmming Illumina adapter sequences with Trimmomatic.
 
 ```{r, echo=FALSE}
 read.table("preprocess_summary.tsv", header = T) %>%
@@ -402,7 +391,8 @@ read.table("preprocess_summary.tsv", header = T) %>%
   pander(split.table = Inf)
 ```
 
-**Table 2: Number of reads before and after filtering of host genome sequence.**
+###Table 2: Number of reads before and after filtering of host genome sequence.
+
 ```{r, echo=FALSE}
 read.table("preprocess_summary.tsv", header = T) %>%
   mutate(Samples = sub(".json", "", Samples, fixed = TRUE)) %>%
