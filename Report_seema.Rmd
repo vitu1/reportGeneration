@@ -27,11 +27,12 @@ library(tidyr)
 
 ```{r sample_sheet_import, echo=FALSE}
 mapping_file_name <- "metadata.txt"
-s <- read.table(mapping_file_name, sep='\t',  header=TRUE, stringsAsFactors = FALSE)
-s$SampleID <- as.character(s$SampleID)
+s <- read.delim(mapping_file_name, sep='\t', stringsAsFactors = FALSE) %>%
+  mutate(SampleID = as.character(SampleID)) %>%
+  mutate(isControl = grepl('positive|negative|vibriolambda|crypto|blank|environmental|mock', SampleID))
 
-color_by <- ''
-shape_by <- ''
+color_by <- NULL
+shape_by <- NULL
 potential_headers <- c('study_group', 'study_day', 'current_antibiotics', 'cage_number', 'mouse_strain')
 header_idx <- which(is.element(potential_headers, colnames(s)))
 
@@ -44,7 +45,7 @@ if(length(header_idx)>1){
 
 quality_summary_headers <- c('SampleType', 'study_day')
 header_idx <- which(is.element(quality_summary_headers, colnames(s)))
-quality_by <- ifelse(length(header_idx)>0, quality_summary_headers[header_idx[1]], '')
+quality_by <- ifelse(length(header_idx)>0, quality_summary_headers[header_idx[1]], NULL)
 ```
 
 # Introduction
@@ -60,10 +61,11 @@ Nextera-XT adapters were used while sequencing which were removed by the trimmin
 ###Figure 1: Number of read pairs per sample after demultiplexing
 
 ```{r,fig.width=7, fig.height=5, fig.align='center', echo=FALSE}
-read.table("preprocess_summary.tsv", header = T) %>%
+read.delim("preprocess_summary.tsv") %>%
   mutate(Samples = sub(".json", "", Samples)) %>%
   mutate(num_seq=input/1000000) %>%
-  filter(!grepl('positive|negative|vibriolambda|crypto|blank|environmental|mock', Samples, ignore.case=TRUE)) %>%
+  merge(s[c("SampleID", "isControl")], by.y="SampleID", by.x="Samples") %>%
+  filter(!isControl) %>%
   ggplot(aes(x=num_seq)) +
     geom_histogram(binwidth = 2) +
     theme_classic() +
@@ -82,7 +84,7 @@ read.table("preprocess_summary.tsv", header = T) %>%
 fp = file.path('fastqc_after_trim_quality.tsv')
 
 rexp <- "^(.*)_(R[12])$"
-quality <- read.table(fp, sep='\t', header=TRUE) %>%
+quality <- read.delim(fp, sep='\t') %>%
   melt(id.vars="Samples", variable.name="Position", value.name = "Quality") %>%
   mutate(
     Position = sub("X", "", Position),
@@ -114,14 +116,15 @@ Nextera-XT adapters were trimmed using trimmomatic and Table 1 (see Appendix) sh
 ###Figure 3: Overall distribution of percentage reads removed in quality control
 
 ```{r,fig.width=5, fig.height=3, fig.align='center', echo=FALSE}
-preprocess <- read.table("preprocess_summary.tsv", header = T) %>%
+preprocess <- read.delim("preprocess_summary.tsv") %>%
   mutate(Samples = sub(".json", "", Samples)) %>%
   mutate(low_quality = (fwd_only + rev_only + dropped) / input) %>%
   mutate(human = true / input) %>%
   mutate(non_human = false / input) %>%
-  filter(!grepl('positive|negative|vibriolambda|crypto|blank|environmental|mock', Samples, ignore.case=TRUE)) %>%
-  slice(order(.$human, decreasing=TRUE)) %>%
-  mutate(Sample_num=1:dim(.)[1]) %>%
+  merge(s[c("SampleID", "isControl")], by.y="SampleID", by.x="Samples") %>%
+  filter(!isControl) %>%
+  arrange(desc(human)) %>%
+  mutate(Sample_num=row_number()) %>%
   merge(s, by.y="SampleID", by.x="Samples") %>%
   melt(c("Sample_num", quality_by), c("low_quality", "human", "non_human"))
 
@@ -129,7 +132,7 @@ num_rows <- length(unique(preprocess[quality_by]))
 
 ggplot(preprocess, aes(x=Sample_num, y=value)) +
   geom_area(aes(fill=variable), position='stack') + 
-  facet_wrap(as.formula(paste("~", quality_by)), scales = "free_x", nrow = num_rows) +
+  facet_wrap(quality_by, scales = "free_x", nrow = num_rows) +
   scale_fill_brewer(palette="Set1") + 
   theme(axis.text.x = element_blank()) +
   scale_x_continuous(expand=c(0,0)) +
@@ -164,8 +167,7 @@ read_metaphlan2_table <- function (filepath, sample_prefix="PCMP_") {
 }
 
 props <- read_metaphlan2_table("taxonomic_assignments.tsv")
-lab_control_idx <- grep('positive|negative|vibriolambda|crypto|blank|environmental|mock', colnames(props), ignore.case = TRUE)
-props <- props[,-lab_control_idx]
+props <- props[,s$SampleID[!s$isControl]]
 
 adf <- split_assignments(rownames(props), split = "\\|")
 a <- simplify_assignments(adf, rank2 = "Species")
@@ -224,7 +226,7 @@ pc_pct <- round(pc$values$Relative_eig * 100)
 ###Figure 4: Ordination based on Bray-Curtis distance
 
 ```{r, fig.width=6, fig.height=5}
-g_bray = ggplot(pc_df, aes_string(x="Axis.1", y="Axis.2")) +
+g_bray = ggplot(pc_df, aes(x=Axis.1, y=Axis.2)) +
   #geom_point(aes_string(x="Axis.1", y="Axis.2", color=color_by)) +
   theme_bw() +
   scale_shape_discrete(name=shape_by) + 
@@ -234,9 +236,9 @@ g_bray = ggplot(pc_df, aes_string(x="Axis.1", y="Axis.2")) +
     x = paste0("PCoA axis 1 (", pc_pct[1], "%)"),
     y = paste0("PCoA axis 2 (", pc_pct[2], "%)"))
 
-if (shape_by == '' & color_by!='') {
+if (is.null(shape_by) & !is.null(color_by)) {
   g_bray <- g_bray + geom_point(aes(colour=factor(get(color_by))))
-} else if (shape_by!='' & color_by!='') {
+} else if (!is.null(shape_by) & !is.null(color_by)) {
   g_bray <- g_bray + geom_point(aes(colour=factor(get(color_by)), shape=factor(get(shape_by))))
 } else {
   g_bray <- g_bray + geom_point()
@@ -280,7 +282,7 @@ pc_pct <- round(pc$values$Relative_eig * 100)
 ###Figure 6: Ordination based on Jaccard distance
 
 ```{r, fig.width=6, fig.height=5}
-g_jac = ggplot(pc_df, aes_string(x="Axis.1", y="Axis.2")) +
+g_jac = ggplot(pc_df, aes(x=Axis.1, y=Axis.2)) +
   #geom_point(aes_string(x="Axis.1", y="Axis.2", color=color_by)) +
   theme_bw() +
   scale_shape_discrete(name=shape_by) + 
@@ -290,9 +292,9 @@ g_jac = ggplot(pc_df, aes_string(x="Axis.1", y="Axis.2")) +
     x = paste0("PCoA axis 1 (", pc_pct[1], "%)"),
     y = paste0("PCoA axis 2 (", pc_pct[2], "%)"))
 
-if (shape_by == '' & color_by!='') {
+if (is.null(shape_by) & !is.null(color_by)) {
   g_jac <- g_jac + geom_point(aes(colour=factor(get(color_by))))
-} else if (shape_by!='' & color_by!='') {
+} else if (!is.null(shape_by) & !is.null(color_by)) {
   g_jac <- g_jac + geom_point(aes(colour=factor(get(color_by)), shape=factor(get(shape_by))))
 } else {
   g_jac <- g_jac + geom_point()
@@ -323,20 +325,20 @@ Abundance of Kyoto Encyclopedia of Genes and Genomes (KEGG) orthologs (KO) were 
 ###Figure 8: Ordination based on Bray-Curtis distance for KEGG orthology assignments
 
 ```{r,echo=FALSE}
-ko <- read.table("ko_assignments.tsv", sep='\t', header=TRUE, stringsAsFactors = FALSE, row.names = 1)
-lab_control_idx <- grep('positive|negative|vibriolambda|crypto|blank|environmental|mock', colnames(ko), ignore.case = TRUE)
-ko <- ko[,-lab_control_idx]
+read_ko_table <- function (filepath, sample_prefix="PCMP_") {
+  ko <- as.matrix(read.delim(filepath, row.names=1))
+  colnames(ko) <- sub(sample_prefix, "", colnames(ko), fixed = TRUE)
+  ko
+}
+
+ko <- read_ko_table("ko_assignments.tsv")
+ko <- ko[,-s$SampleID[s$isControl]]
 
 ko <- sweep(ko, 2, colSums(ko), "/")
 
 bc <- vegdist(t(ko), method='bray')
 ko_pca <- pcoa(bc)
-
-temp_vectors <- ko_pca$vectors[, 1:5]
-rownames(temp_vectors) <- gsub('PCMP_', '', rownames(temp_vectors))
-#temp_vectors <- temp_vectors[s$SampleID,]
-
-ko_df <- merge(s, temp_vectors, by.x="SampleID", by.y="row.names")
+ko_df <- merge(s, ko_pca$vectors[, 1:3], by.x="SampleID", by.y="row.names")
 ko_pct <- round(ko_pca$values$Relative_eig * 100)
 
 g_uu <- ggplot(ko_df, aes(x=Axis.1, y=Axis.2)) +
@@ -346,12 +348,12 @@ g_uu <- ggplot(ko_df, aes(x=Axis.1, y=Axis.2)) +
   scale_colour_discrete(name=color_by) +
   labs(
     #title = 'PCoA plot based on Bray-Curtis distances',
-    x = paste0("PCoA axis 1 (", pc_pct[1], "%)"),
-    y = paste0("PCoA axis 2 (", pc_pct[2], "%)"))
+    x = paste0("PCoA axis 1 (", ko_pct[1], "%)"),
+    y = paste0("PCoA axis 2 (", ko_pct[2], "%)"))
 
-if (shape_by =='' & color_by!='') {
+if (is.null(shape_by) & !is.null(color_by)) {
   g_uu <- g_uu + geom_point(aes(colour=factor(get(color_by))))
-} else if (shape_by!='' & color_by!='') {
+} else if (!is.null(shape_by) & !is.null(color_by)) {
   g_uu <- g_uu + geom_point(aes(colour=factor(get(color_by)), shape=factor(get(shape_by))))
 } else {
   g_uu <- g_uu + geom_point()
