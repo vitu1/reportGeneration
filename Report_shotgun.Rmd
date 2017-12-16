@@ -1,0 +1,424 @@
+---
+title: "Basic Bioinformatics Overview"
+author: "PennCHOP Microbiome Program"
+date: \today
+output: pdf_document
+---
+
+```{r setup, echo=FALSE}
+knitr::opts_chunk$set(
+  tidy=FALSE,
+  cache=FALSE,
+  echo=FALSE,
+  warning=FALSE,
+  message=FALSE,
+  dpi=100,
+  fig.width=6,
+  fig.height=4,
+  fig.align = "center"
+  )
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(pheatmap)
+#library(png)
+library(grid)
+library(pander)
+library(stringr)
+library(qiimer)
+library(vegan)
+library(ape)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(magrittr)
+library(tidyr)
+```
+
+```{r}
+change_data_format <- function(d) {
+  paste(substr(d,5,6), substr(d,7,8), substr(d,1,4), sep="-")
+}
+
+###=====
+###  make_pcoa_plot <- function(uu, s, shape_by, color_by, title)
+###  uu: distance, s: mapping file, shape_by: variable used for shape, color_by: variable used for color
+###=====
+
+make_pcoa_plot <- function(dm, s, shape_by, color_by) {
+  dm <- usedist::dist_subset(dm, s$SampleID)
+  pc <- pcoa(dm)
+  pc_df <- merge(s, pc$vectors[, 1:3], by.x="SampleID", by.y="row.names")
+  pc_pct <- round(pc$values$Relative_eig * 100)
+  
+  pcoa_plot = ggplot(pc_df, aes(x=Axis.1, y=Axis.2)) +
+    theme_bw() +
+    scale_shape_discrete(name=sub("_", " ", shape_by)) + 
+    scale_colour_discrete(name=sub("_", " ", color_by)) +
+    labs(
+      x=paste0("PCoA axis 1 (", pc_pct[1], "%)"),
+      y=paste0("PCoA axis 2 (", pc_pct[2], "%)")
+    )
+  
+  if (is.null(shape_by) & !is.null(color_by)) {
+    pcoa_plot <- pcoa_plot + geom_point(aes(colour=factor(get(color_by))))
+  } else if (!is.null(shape_by) & !is.null(color_by)) {
+    pcoa_plot <- pcoa_plot + geom_point(aes(colour=factor(get(color_by)), shape=factor(get(shape_by))))
+  } else {
+    pcoa_plot <- pcoa_plot + geom_point()
+  }
+  return(pcoa_plot)
+}
+
+heatmap_grouped <- function(summed_props, heatmap_s, grps = c("study_group", "study_day"), fname=NULL, thre=0.8, option=1, prop_cut=0.01, satu_limit=0.4){
+  
+  #color = saturated_rainbow(101)
+  color = saturated_rainbow(101, saturation_limit=satu_limit)
+  breaks = c(0, 1e-10, seq(0.001, 1, length.out = 100))
+  
+  heatmap_props <- summed_props[,heatmap_s$SampleID]
+  
+  if (option == 1) {
+    rows_to_keep <- filter_low_coverage(heatmap_props, frac_cutoff=thre) 
+  } else if (option == 2) {
+    rows_to_keep <- apply(heatmap_props,1,max) >= prop_cut 
+  }
+  heatmap_props <- heatmap_props[rows_to_keep,]
+  
+  ## group the SampleIDs
+  heatmap_s %<>% arrange_(.dots=grps)
+  heatmap_props <- heatmap_props[, heatmap_s$SampleID]
+  
+  ## update the annotation
+  annc <- heatmap_s[,grps] %>% as.data.frame()
+  rownames(annc) <- heatmap_s$SampleID
+  colnames(annc) <- grps
+  
+  ## heatmap time
+  if (!is.null(fname))
+    pheatmap(heatmap_props, annotation = annc, color = color, breaks = breaks, filename = fname, 
+             fontsize_col = 8, fontsize_row = 8, cluster_cols = FALSE, cluster_rows = FALSE,cellheight = 8, cellwidth = 8)
+  else
+    pheatmap(heatmap_props, annotation = annc, color = color, breaks = breaks, 
+             fontsize_col = 8, fontsize_row = 8, cluster_cols = FALSE, cluster_rows = FALSE,cellheight = 8, cellwidth = 8)
+}
+```
+
+```{r}
+### number of samples threshold to show heatmap on the page
+sample_threshold <- 100
+
+### mapping file path
+mapping_file_fp <- file.path("metadata.txt")
+
+### preprocess summary results filepath
+preprocess_fp <- "preprocess_summary.tsv"
+
+### read quality
+fastqc_fp = 'fastqc_quality.tsv'
+
+### taxonomic assignment 
+feature_table_fp <- "all_samples.tsv"
+
+### KEGG orthology assignment
+kegg_fp <- "ko_assignments.tsv"
+```
+
+```{r sample_sheet_import, echo=FALSE}
+s <- read.delim(mapping_file_fp, sep='\t') %>%
+  mutate(SampleID = as.character(SampleID)) %>%
+  mutate(isControl = grepl('Extract|Vibrio|EBneg', SampleID))
+
+color_by <- NULL
+shape_by <- NULL
+potential_headers <- c('study_group', 'study_day', 'current_antibiotics', 'cage_number', 'mouse_strain')
+header_idx <- which(is.element(potential_headers, colnames(s)))
+
+if(length(header_idx)>0){
+  color_by <- potential_headers[header_idx[1]]
+}
+if(length(header_idx)>1){
+  shape_by <- potential_headers[header_idx[2]]
+}
+
+quality_summary_headers <- c('SampleType', 'study_day')
+header_idx <- which(is.element(quality_summary_headers, colnames(s)))
+quality_by <- ifelse(length(header_idx)>0, quality_summary_headers[header_idx[1]], NULL)
+
+all_dates <- as.character(unique(s$run_start_date))
+run_date <- paste(lapply(all_dates, change_data_format), collapse=', ')
+investigator <- paste(unique(s$investigator), collapse = ", ")
+investigator <- gsub("(^|[[:space:]])([[:alpha:]])", "\\1\\U\\2", investigator, perl=TRUE)
+```
+
+```{r}
+preprocess <- read.delim(preprocess_fp) %>%
+  mutate(Samples = sub(".json", "", Samples))
+
+o <- read_qiime_otu_table("all_samples.tsv")
+
+# Metadata in the form of truncated green genes assignments
+md <- sub("(; [kpcofgs]__)+$", "", o$metadata, perl=T)
+md <- gsub("[kpcofgs]__", "", md)  
+
+# Assignments data-frame
+adf <- split_assignments(md) %>%
+  mutate(Species = ifelse(!is.na(Genus) & !is.na(Species), paste(Genus, Species), NA))
+a <- simplify_assignments(adf, rank1 = "Phylum", rank2="Species")
+
+cts <- o$counts
+colnames(cts) <- sub("\\.taxa$", "", colnames(cts))
+
+cts_props <- sweep(cts, 2, colSums(cts), "/")
+summed_cts <- rowsum(cts, a) 
+props <- sweep(summed_cts, 2, colSums(summed_cts), "/")
+
+```
+
+# Introduction
+
+This report is based on the results of sequencing performed on `r run_date` for `r investigator` Project. 
+
+# Demultiplexing and quality control
+
+## Number of read pairs per sample after demultiplexing
+
+Samples were sequenced on Hiseq 2500 and demultiplexed. The demultiplexing step involves matching the barcode sequences assicated with each sample to the sequence each read is tagged with.
+
+```{r echo=FALSE}
+preprocess %>%
+  mutate(num_seq=input/1000000) %>%
+  merge(s[c("SampleID", "SampleType")], by.y="SampleID", by.x="Samples") %>%
+  ggplot(aes(x=num_seq)) +
+    geom_histogram(aes(fill=SampleType), binwidth=0.2) +
+    theme_bw() + 
+    labs(
+      x="Number of read pairs in sample (millions, M)",
+      y="Number of samples"
+    )
+#ggsave(filename="summary_dnabc.pdf", width=7, height=5, useDingbats=F)
+```
+
+\newpage
+
+## Average nucleotide quality after adapter trimming and quality control
+
+Nextera-XT adapters were removed using trimmomatic-0.33. Nucleotide quality for each position was averaged across all reads using FASTQC.
+
+```{r echo=FALSE}
+read.delim(fastqc_fp, sep='\t') %>%
+  melt(id.vars="Samples", variable.name="Position", value.name = "Quality") %>%
+  mutate(
+    Position = sub("X", "", Position),
+    Position = sub("\\.\\d+", "", Position, perl = TRUE),
+    Position = as.numeric(Position),
+    Samples = sub("PCMP_", "", Samples, fixed = TRUE)) %>%
+  mutate(SampleID=sub("^(.*)_(R[12])$", "\\1", Samples), Direction=sub("^(.*)_(R[12])$", "\\2", Samples)) %>%
+  mutate(Direction = factor(Direction)) %>%
+  group_by(Direction, Position) %>%
+  summarise(MeanQual = mean(Quality), SdQual = sd(Quality)) %>%
+  mutate(LowQual = MeanQual - SdQual, HighQual = MeanQual + SdQual) %>%
+  ungroup() %>%
+  ggplot(aes(x=Position, y=MeanQual)) + 
+    geom_errorbar(aes(ymin=LowQual, ymax=HighQual)) +
+    facet_wrap(~ Direction) +
+    geom_line() +
+    geom_point() +
+    theme_bw() + 
+    labs(x='Position in sequence read', y='Average quality score per sample')
+#ggsave(filename='quality_after.pdf', width=7, height=5, useDingbats=F)
+```
+
+\newpage
+
+## Overall distribution of percentage reads removed in quality control
+
+The low quality reads defined by Trimmomatic-0.33 were discarded from further analysis. Human DNA was filtered using BWA with HG38 version of human genome as reference. Reads mapping to the PhiX genome was also removed. Only the reads tagged as non-human were analyzed further.
+
+```{r echo=FALSE}
+preprocess %>%
+  mutate(low_quality = (fwd_only + rev_only + dropped) / input) %>%
+  mutate(human = true / input) %>%
+  mutate(non_human = false / input) %>%
+  merge(s[c("SampleID", "isControl", quality_by)], by.y="SampleID", by.x="Samples") %>%
+  filter(!isControl) %>%
+  arrange(desc(human)) %>%
+  mutate(Sample_num=row_number()) %>%
+  melt(c("Sample_num", quality_by), c("low_quality", "human", "non_human")) %>%
+  ggplot(aes(x=Sample_num, y=value)) +
+    geom_area(aes(fill=variable), position='stack') + 
+    facet_grid(.~eval(parse(text=quality_by)), scales = "free_x") +
+    scale_fill_brewer(palette="Set1") + 
+    theme(axis.text.x = element_blank()) +
+    scale_x_continuous(expand=c(0,0)) +
+    scale_y_continuous(expand=c(0,0), labels=scales:::percent) +
+    labs(x="Samples", y="Percentage of reads", fill="")
+#ggsave(filename='preprocess_summary.pdf', width=5, height=7, useDingbats=F)
+```
+
+# Taxonomic assignments
+
+```{r}
+prop_cut <- 0.05
+satu_limit <- 0.4
+heatmap_fp <- "taxonomy_heatmap.pdf"
+show.text <- nrow(s) > sample_threshold
+```
+
+Taxonomic assignments were performed using the Kraken program.
+
+Heatmap charts were generated from the taxonomic assignments. Each column represents one sample and each row represents one taxon (typically a species). Ranks are included in the plot if the taxon is present in `r 100*prop_cut`% abundance in at least one sample.
+
+The chart is colored white if species were not observed in the sample, dark blue if species were observed at very low abundance.  This allows the reader to quickly survey species presence/absence.  Abundance values exceeding 40% are colored red, indicating an extremely dominant species.
+
+`r if(show.text){paste0("Please see attached plot ", heatmap_fp, ".")}`
+
+```{r}
+s_toPlot <- s %>%
+  filter(!isControl)
+
+props_toPlot <- props[, s_toPlot$SampleID]  
+grps <- c(color_by, shape_by)
+
+if (dim(s_toPlot)[1] > sample_threshold) {
+  heatmap_grouped(props_toPlot, s_toPlot, grps=grps, thre=0.01, option=2, prop_cut = prop_cut, satu_limit=satu_limit, fname = heatmap_fp)
+} else {
+  heatmap_grouped(props_toPlot, s_toPlot, grps=grps, thre=0.01, option=2, prop_cut = prop_cut, satu_limit=satu_limit)
+}
+```
+
+\newpage
+
+# Beta diversity
+
+```{r}
+s_toPlot <- s %>%
+  filter(!isControl)
+```
+
+## Bray-Curtis distance
+
+### PCoA plot based on Bray-Curtis distance
+
+Here, we use Bray-Curtis distance to compare the species composition of the samples to each other.
+
+The first plot shows the distance between each pair of samples in a single 2D plot.  It is not possible to plot the distances exactly on paper, so we have used a method of ordination called Principal Coordinates Analysis to select the best coordinate system for display.  The percentage of total variance captured along each axis is displayed on the chart.
+
+```{r}
+bc <- vegdist(t(cts_props))
+dist_in <- usedist::dist_subset(bc, s_toPlot$SampleID)
+plot(make_pcoa_plot(dist_in, s_toPlot, color_by=color_by, shape_by=shape_by))
+```
+
+### Hierarchical clustering based on Bray-Curtis distance
+
+The second plot shows sample clustering based on Bray-Curtis distance.  We have used a method of hierarchical clustering called "average-linkage" or UPGMA.  At the bottom of the dendrogram, all samples start out in their own group.  Moving up the dendrogram, samples accumulate into clusters if the average (mean) distance between all samples is below the indicated value.
+
+```{r fig.width=15}
+bc_upgma <- hclust(usedist::dist_subset(bc, s_toPlot$SampleID), method = "average")
+plot(
+  bc_upgma, hang=-1, main="",
+  ylab = "Bray-Curtis distance",
+  xlab="Hierarchical clsutering",
+  sub="Average-linkage method (UPGMA)")
+```
+
+\newpage
+
+## Jaccard distance
+
+Here, we use Jaccard distance to compare samples based on shared species membership.  Plots are described above.
+
+### PCoA plot based on Jaccard distance
+
+```{r}
+jd <- vegdist(t(cts_props), binary=TRUE)
+
+dist_in <- usedist::dist_subset(bc, s_toPlot$SampleID)
+plot(make_pcoa_plot(dist_in, s_toPlot, color_by=color_by, shape_by=shape_by))
+```
+
+### Hierarchical clustering based on Jaccard distance
+
+```{r fig.width=15}
+jd_upgma <- hclust(usedist::dist_subset(jd, s_toPlot$SampleID), method = "average")
+plot(
+  jd_upgma, hang=-1, main="",
+  ylab = "Jaccard distance",
+  xlab="Hierarchical clsutering",
+  sub="Average-linkage method (UPGMA)")
+```
+
+\newpage
+
+# Functional assignment of reads matching to known genes
+
+Abundance of Kyoto Encyclopedia of Genes and Genomes (KEGG) orthologs (KO) were calculated. Here, we use Bray-Curtis distance to compare the KO composition of the samples to each other.
+
+## Ordination based on Bray-Curtis distance for KEGG orthology assignments
+
+```{r echo=FALSE}
+read_ko_table <- function (filepath, sample_prefix="PCMP_") {
+  ko <- as.matrix(read.delim(filepath, row.names=1))
+  colnames(ko) <- sub(sample_prefix, "", colnames(ko), fixed = TRUE)
+  ko
+}
+
+ko <- read_ko_table(kegg_fp)
+ko <- sweep(ko, 2, colSums(ko), "/")
+
+bc_kegg <- vegdist(t(ko))
+dist_in <- usedist::dist_subset(bc_kegg, s_toPlot$SampleID)
+plot(make_pcoa_plot(dist_in, s_toPlot, color_by=color_by, shape_by=shape_by))
+```
+
+A heatmap of the gene proportions is included in the attached file, `gene_function_assignments.pdf`.  The top 75 gene categories are shown, selected by mean abundance.  Samples and gene categories are clustered by Canberra distance.
+
+```{r}
+top_ko <- names(sort(rowMeans(ko), decreasing = TRUE))[1:75]
+ko_heatmap <- ko[rownames(ko) %in% top_ko,]
+pheatmap(
+  ko_heatmap[,s_toPlot$SampleID],
+  color = saturated_rainbow(100, saturation_limit = 0.25),
+  breaks = c(0, 1e-10, seq(0.001, 0.1, length.out = 99)),
+  filename = "gene_function_assignments.pdf",
+  clustering_distance_rows = "canberra",
+  clustering_distance_cols = "canberra",
+  cellwidth = 9, cellheight = 9, fontsize = 10)
+```
+
+\newpage
+
+# Appendix
+
+## Number of reads before and after trimmming Illumina adapter sequences with Trimmomatic.
+
+```{r, echo=FALSE}
+preprocess %>%
+  select(
+    Sample = Samples,
+    Input = input,
+    Dropped = dropped,
+    `Forward only` = fwd_only,
+    `Reverse only` = rev_only,
+    `Both kept` = both_kept) %>%
+  pander(split.table = Inf)
+```
+
+## Number of reads before and after filtering of host genome sequence.
+
+```{r, echo=FALSE}
+preprocess %>%
+  mutate(
+    `Percent host reads` = 100 * true / (true + false),
+    `Percent host reads` = round(`Percent host reads`, 2)) %>%
+  select(
+    Sample = Samples,
+    `Host reads` = true,
+    `Non-host reads` = false,
+    `Percent host reads`) %>%
+  pander(split.table = Inf)
+```
+
+
+
