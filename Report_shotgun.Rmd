@@ -334,7 +334,7 @@ Here, we use Jaccard distance to compare samples based on shared species members
 ```{r}
 jd <- vegdist(t(cts_props), binary=TRUE)
 
-dist_in <- usedist::dist_subset(bc, s_toPlot$SampleID)
+dist_in <- usedist::dist_subset(jd, s_toPlot$SampleID)
 plot(make_pcoa_plot(dist_in, s_toPlot, color_by=color_by, shape_by=shape_by))
 ```
 
