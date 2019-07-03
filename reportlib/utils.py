@@ -3,7 +3,10 @@ import os
 import glob
 import pandas
 import re
-import StringIO
+try:
+        from StringIO import StringIO
+except ImportError:
+        from io import StringIO
 
 class MergeJson(object):
     def __init__(self, inputs, out_fp):
